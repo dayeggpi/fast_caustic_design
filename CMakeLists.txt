@@ -128,3 +128,6 @@ target_link_libraries(stippling otapputils otlib ${ALLLIBS})
 
 add_executable(barycenters apps/barycenters.cpp)
 target_link_libraries(barycenters otapputils otlib ${ALLLIBS})
+
+add_executable(transport_points apps/transport_points.cpp)
+target_link_libraries(transport_points otapputils otlib ${ALLLIBS})

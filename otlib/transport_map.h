@@ -39,8 +39,9 @@ public:
 
   /** this function must be called at least once before calling inv/inv_fast */
   void init_inverse() const;
+  void init_forward() const;
 
-  Eigen::Vector2d fwd(const Eigen::Vector2d& p) const;
+  Eigen::Vector2d fwd(const Eigen::Vector2d& p) const { return fwd_impl(p,false); }
   Eigen::Vector2d inv(const Eigen::Vector2d& p) const { return inv_impl(p,false); }
   Eigen::Vector2d inv_fast(const Eigen::Vector2d& p) const { return inv_impl(p,true); }
 
@@ -55,15 +56,22 @@ public:
 protected:
 
   Eigen::Vector2d inv_impl(const Eigen::Vector2d& p, bool fast_mode) const;
+  Eigen::Vector2d fwd_impl(const Eigen::Vector2d& p, bool fast_mode) const;
+
 
   std::shared_ptr<surface_mesh::Surface_mesh> m_origin_mesh;
   std::shared_ptr<surface_mesh::Surface_mesh> m_fwd_mesh;
   std::shared_ptr<Eigen::VectorXd> m_density;
-  mutable BVH2D* m_bvh;
+  mutable BVH2D* m_bvh_fwd;
+  mutable BVH2D* m_bvh_inv;
 };
 
 /** Inverts uniform mesh relative to a transport map */
 void apply_inverse_map( const otmap::TransportMap& tmap,
+                        std::vector<Eigen::Vector2d> &points, /* in-out */
+                        int verbose_level = 2);
+
+void apply_forward_map( const otmap::TransportMap& tmap,
                         std::vector<Eigen::Vector2d> &points, /* in-out */
                         int verbose_level = 2);
 

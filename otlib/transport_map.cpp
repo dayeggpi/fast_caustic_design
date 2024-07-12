@@ -30,21 +30,31 @@ namespace otmap
 TransportMap::TransportMap( std::shared_ptr<surface_mesh::Surface_mesh> origin_mesh,
                             std::shared_ptr<surface_mesh::Surface_mesh> fwd_mesh,
                             std::shared_ptr<Eigen::VectorXd> density)
-  : m_origin_mesh(origin_mesh), m_fwd_mesh(fwd_mesh), m_density(density), m_bvh(0)
+  : m_origin_mesh(origin_mesh), m_fwd_mesh(fwd_mesh), m_density(density), m_bvh_fwd(0), m_bvh_inv(0)
 {}
 
 void TransportMap::init_inverse() const
 {
-  if(m_bvh==nullptr)
+  if(m_bvh_fwd==nullptr)
   {
-    m_bvh = new BVH2D;
-    m_bvh->build(m_fwd_mesh.get(),4,24);
+    m_bvh_fwd = new BVH2D;
+    m_bvh_fwd->build(m_fwd_mesh.get(),4,24);
+  }
+}
+
+void TransportMap::init_forward() const
+{
+  if(m_bvh_inv==nullptr)
+  {
+    m_bvh_inv = new BVH2D;
+    m_bvh_inv->build(m_origin_mesh.get(),4,24);
   }
 }
 
 TransportMap::~TransportMap()
 {
-  delete m_bvh;
+  delete m_bvh_fwd;
+  delete m_bvh_inv;
 }
 
 Eigen::Vector2d TransportMap::inv_impl(const Eigen::Vector2d& p_in,bool fast_mode) const
@@ -61,7 +71,7 @@ Eigen::Vector2d TransportMap::inv_impl(const Eigen::Vector2d& p_in,bool fast_mod
     const VectorXd& density = *m_density;
 
     std::vector<BVH2D::Hit> hits;
-    m_bvh->query_all(p,hits);
+    m_bvh_fwd->query_all(p,hits);
     if(hits.size()==0)
     {
       std::cerr << "Error: no face found. " << p.transpose() << "\n";
@@ -97,7 +107,61 @@ Eigen::Vector2d TransportMap::inv_impl(const Eigen::Vector2d& p_in,bool fast_mod
   else
   {
     // otherwise, pick the first (faster)
-    return m_bvh->interpolate_at(p, m_origin_mesh->points());
+    return m_bvh_fwd->interpolate_at(p, m_origin_mesh->points());
+  }
+}
+
+Eigen::Vector2d TransportMap::fwd_impl(const Eigen::Vector2d& p_in,bool fast_mode) const
+{
+  // snap to [0,1]:
+  Vector2d p = p_in.array().max(0.).min(1.);
+
+  if(!fast_mode)
+  {
+    // If the target density is given,
+    // then let's find all overlaping cells,
+    // and keep the one with largest density (<=> largest area)
+
+    const VectorXd& density = *m_density;
+
+    std::vector<BVH2D::Hit> hits;
+    m_bvh_inv->query_all(p,hits);
+    if(hits.size()==0)
+    {
+      std::cerr << "Error: no face found. " << p.transpose() << "\n";
+    }
+
+    Surface_mesh::Face f = hits[0].face_id;
+    double* w = hits[0].bary_coord;
+    if(hits.size()>1)
+    {
+      // find intersecting face with highest density (area)
+      double best_area = density(f.idx());
+      for(int k=1; k<hits.size(); ++k)
+      {
+        if(density(hits[k].face_id.idx()) > best_area)
+        {
+          f = hits[k].face_id;
+          w = hits[0].bary_coord;
+          best_area = density(hits[k].face_id.idx())>best_area;
+        }
+      }
+    }
+
+    int indices[4];
+    int j = 0;
+    for(auto v : m_origin_mesh->vertices(f))
+      indices[j++] = v.idx();
+
+    Vector2d res = w[0]*m_fwd_mesh->points()[indices[0]];
+    for(int i=1;i<j;++i)
+      res += w[i]*m_fwd_mesh->points()[indices[i]];
+    return res;
+  }
+  else
+  {
+    // otherwise, pick the first (faster)
+    return m_bvh_inv->interpolate_at(p, m_fwd_mesh->points());
   }
 }
 
@@ -119,6 +183,31 @@ apply_inverse_map(const otmap::TransportMap& tmap, std::vector<Vector2d> &points
   for(int i=0; i<points.size(); ++i)
   {
     points[i] = tmap.inv(points[i]);
+  }
+  timer.stop();
+  bvh_queries = timer.value(REAL_TIMER);
+
+  if(verbose_level>=2)
+    std::cout << "Inversion: bvh_init(" << bvh_init << ") + bvh_queries(" << bvh_queries << ") = " << bvh_init+bvh_queries << "\n";
+}
+
+void
+apply_forward_map(const otmap::TransportMap& tmap, std::vector<Vector2d> &points, int verbose_level)
+{
+  BenchTimer timer;
+
+  double bvh_init = 0.;
+  double bvh_queries = 0.;
+
+  timer.start();
+  tmap.init_forward();
+  timer.stop();
+  bvh_init = timer.value(REAL_TIMER);
+
+  timer.start();
+  for(int i=0; i<points.size(); ++i)
+  {
+    points[i] = tmap.fwd(points[i]);
   }
   timer.stop();
   bvh_queries = timer.value(REAL_TIMER);
