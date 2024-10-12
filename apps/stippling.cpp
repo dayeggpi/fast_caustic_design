@@ -146,7 +146,7 @@ int main(int argc, char** argv)
   MatrixXd density;
   if(!load_input_density(opts.filename, density))
   {
-    std::cout << "Failed to load input \"" << opts.filename << "\" -> abort.";
+    std::cout << "Failed to load input \"" << opts.filename << "\" -> abort." << std::endl;
     exit(EXIT_FAILURE);
   }
 

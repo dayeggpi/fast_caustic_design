@@ -16,6 +16,9 @@
 #include "utils/BenchTimer.h"
 #include <surface_mesh/Surface_mesh.h>
 
+#include "normal_integration/normal_integration.h"
+#include "normal_integration/mesh.h"
+
 using namespace Eigen;
 using namespace surface_mesh;
 using namespace otmap;
@@ -57,6 +60,8 @@ struct CLIopts : CLI_OTSolverOptions
   bool inv_mode;
   bool export_maps;
 
+  uint resolution;
+
   std::string out_prefix;
 
   void set_default()
@@ -72,6 +77,8 @@ struct CLIopts : CLI_OTSolverOptions
     pt_scale = 1;
     export_maps = 0;
     pattern = "";
+
+    resolution = 100;
 
     CLI_OTSolverOptions::set_default();
   }
@@ -94,29 +101,16 @@ struct CLIopts : CLI_OTSolverOptions
     else
       return false;
 
-    if(args.getCmdOption("-points", value))
+    /*if(args.getCmdOption("-points", value))
       pattern = value[0];
     else
-      return false;
+      return false;*/
 
-    if(args.getCmdOption("-ores", value)){
-      ores.resize(value.size());
-      ores.setZero();
-      for(unsigned int i=0; i<value.size(); ++i)
-        ores(i) = std::atoi(value[i].c_str());
-    }
-
-    if(args.getCmdOption("-out", value))
-      out_prefix = value[0];
+    if(args.getCmdOption("-res", value))
+      resolution = std::atof(value[0].c_str());
 
     if(args.getCmdOption("-ptscale", value))
       pt_scale = std::atof(value[0].c_str());
-
-    if(args.getCmdOption("-pattern", value))
-      pattern = value[0];
-
-    if(args.cmdOptionExists("-inv"))
-      inv_mode = true;
     
     if(args.cmdOptionExists("-export_maps"))
       export_maps = true;
@@ -144,12 +138,23 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
+  
+  Mesh mesh(1.0, 1.0, opts.resolution, opts.resolution);
   std::vector<Eigen::Vector2d> tile;
-  if(!load_point_cloud_dat(opts.pattern, tile))
+  normal_integration normal_int;
+  /*if(!load_point_cloud_dat(opts.pattern, tile))
   {
     std::cerr << "Error loading tile \"" << opts.pattern << "\"\n";
     return EXIT_FAILURE;
+  }*/
+
+  for (int i=0; i<mesh.source_points.size(); i++)
+  {
+    Eigen::Vector2d point = {mesh.source_points[i][0], mesh.source_points[i][1]};
+    tile.push_back(point);
   }
+
+  normal_int.initialize_data(mesh);
 
   GridBasedTransportSolver otsolver;
   otsolver.set_verbose_level(opts.verbose_level-1);
@@ -229,9 +234,9 @@ int main(int argc, char** argv)
       tile[j].x() /= (max_x - min_x);
       tile[j].y() /= (max_y - min_y);
 
-      double temp = tile[j].x();
+      /*double temp = tile[j].x();
       tile[j].x() = 1-tile[j].y();
-      tile[j].y() = temp;
+      tile[j].y() = temp;*/
     }
 
     printf("max_x = %f, max_y = %f\r\n", max_x, max_y);
@@ -244,27 +249,40 @@ int main(int argc, char** argv)
     t_inverse.start();
     apply_forward_map(tmap_src, tile, opts.verbose_level-1);
     apply_inverse_map(tmap_trg, tile, opts.verbose_level-1);
-
-    // prune outliers
-    /*int c = 0;
-    for(int k=0; k<points.size(); ++k)
-    {
-      Array2i ij = (points[k].array() * Array2d(density.rows(),density.cols())).floor().cast<int>();
-      if(density(ij.y(),ij.x())!=0)
-      {
-        points[c] = points[k];
-        ++c;
-      }
-    }
-    points.resize(c);*/
     t_inverse.stop();
 
-    std::string filename = opts.out_prefix + "_" + std::to_string(opts.ores[i]);
+    std::vector<std::vector<double>> trg_pts;
+    for (int i=0; i<mesh.source_points.size(); i++)
+    {
+      std::vector<double> point = {tile[i].x(), tile[i].y(), 0};
+      trg_pts.push_back(point);
+    }
+
+    std::vector<std::vector<double>> desired_normals;
+
+    for (int i=0; i<20; i++)
+    {
+        std::vector<std::vector<double>> normals = mesh.calculate_refractive_normals_uniform(trg_pts, 2, 1.49);
+
+        desired_normals.clear();
+
+        // make a copy of the original positions of the vertices
+        for (int i = 0; i < mesh.source_points.size(); i++) {
+            std::vector<double> trg_normal = {normals[0][i], normals[1][i], normals[2][i]};
+            desired_normals.push_back(trg_normal);
+        }
+
+        normal_int.perform_normal_integration(mesh, desired_normals);
+    }
+
+    /*std::string filename = opts.out_prefix + "_" + std::to_string(opts.ores[i]);
     save_point_cloud_dat(filename + ".dat", tile);
     save_point_cloud_eps(filename + ".eps", tile, opts.pt_scale);
 
     std::cout << " # " << opts.ores[i] << "/" << tile.size()
                 << "  ;  gen: " << t_generate_uniform.value(REAL_TIMER)
-                << "s  ;  bvh+inverse: " << t_inverse.value(REAL_TIMER) << "s\n";
+                << "s  ;  bvh+inverse: " << t_inverse.value(REAL_TIMER) << "s\n";*/
+
+    mesh.save_solid_obj_source(0.2, "../output.obj");
   }
 }

@@ -4,7 +4,8 @@ cmake_minimum_required(VERSION 3.2.0)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-set (CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
@@ -50,6 +51,9 @@ else()
   message(STATUS "Disable Cholmod support (not found)")
   message(WARNING "Chomod not found, solving will be significantly slower than expected.")
 endif()
+
+find_package(Ceres REQUIRED)
+include_directories(${CERES_INCLUDE_DIRS})
 
 ## FILES ##########################################################################
 set(SURFACE_MESH_SRC_FILES
@@ -108,6 +112,8 @@ set(OTAPPUTILS_SRC_FILES
     apps/common/inputparser.cpp
     apps/common/analytical_functions.cpp
     apps/common/generic_tasks.cpp
+    apps/normal_integration/normal_integration.cpp
+    apps/normal_integration/mesh.cpp
 )
 
 set(OTAPPUTILS_HEADER_FILES
@@ -116,6 +122,9 @@ set(OTAPPUTILS_HEADER_FILES
     apps/common/analytical_functions.h
     apps/common/generic_tasks.h
     apps/common/otsolver_options.h
+    apps/normal_integration/normal_integration.h
+    apps/normal_integration/mesh.h
+    apps/normal_integration/costFunctor.h
 )
 
 add_library(otapputils ${OTAPPUTILS_SRC_FILES})
@@ -130,4 +139,4 @@ add_executable(barycenters apps/barycenters.cpp)
 target_link_libraries(barycenters otapputils otlib ${ALLLIBS})
 
 add_executable(transport_points apps/transport_points.cpp)
-target_link_libraries(transport_points otapputils otlib ${ALLLIBS})
+target_link_libraries(transport_points otapputils otlib ${ALLLIBS} ${CERES_LIBRARIES})
