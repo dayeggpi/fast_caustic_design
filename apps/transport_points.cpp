@@ -119,6 +119,51 @@ struct CLIopts : CLI_OTSolverOptions
   }
 };
 
+std::vector<double> normalize_vec(std::vector<double> p1) {
+    std::vector<double> vec(3);
+    double squared_len = 0;
+    for (int i=0; i<p1.size(); i++) {
+        squared_len += p1[i] * p1[i];
+    }
+
+    double len = std::sqrt(squared_len);
+
+    for (int i=0; i<p1.size(); i++) {
+        vec[i] = p1[i] / len;
+    }
+
+    return vec;
+}
+
+//compute the desired normals
+std::vector<std::vector<double>> fresnelMapping(std::vector<std::vector<double>> &vertices, std::vector<std::vector<double>> &target_pts, double focal_len, double refractive_index) {
+    std::vector<std::vector<double>> desiredNormals;
+    float refraction = 1.49;
+
+    for(int i = 0; i < vertices.size(); i++) {
+        std::vector<double> incidentLight = {0, 0, -1};
+        std::vector<double> transmitted = {
+            target_pts[i][0] - vertices[i][0],
+            target_pts[i][1] - vertices[i][1],
+            target_pts[i][2] - focal_len - vertices[i][2]
+        };
+
+        transmitted = normalize_vec(transmitted);
+        incidentLight = normalize_vec(incidentLight);
+
+        std::vector<double> normal = {
+            (transmitted[0] - incidentLight[0] * refractive_index) * -1.0f,
+            (transmitted[1] - incidentLight[1] * refractive_index) * -1.0f,
+            (transmitted[2] - incidentLight[2] * refractive_index) * -1.0f,
+        };
+
+        normal = normalize_vec(normal);
+
+        desiredNormals.push_back(normal);
+    }
+
+    return desiredNormals;
+}
 
 int main(int argc, char** argv)
 {
@@ -139,7 +184,9 @@ int main(int argc, char** argv)
   }
 
   
-  Mesh mesh(1.0, 1.0, opts.resolution, opts.resolution);
+  Mesh mesh(1.0, 1.0/2, opts.resolution, opts.resolution/2);
+  //Mesh mesh(1.0, 1.0, opts.resolution, opts.resolution);
+  
   std::vector<Eigen::Vector2d> tile;
   normal_integration normal_int;
   /*if(!load_point_cloud_dat(opts.pattern, tile))
@@ -197,6 +244,8 @@ int main(int argc, char** argv)
   TransportMap tmap_src = otsolver.solve(vec(density_src), opts.solver_opt);
   t_solver_compute.stop();
 
+  std::cout << "transport map for source image found" << std::endl;
+
   t_solver_init.start();
   otsolver.init(density_trg.rows());
   t_solver_init.stop();
@@ -204,6 +253,8 @@ int main(int argc, char** argv)
   t_solver_compute.start();
   TransportMap tmap_trg = otsolver.solve(vec(density_trg), opts.solver_opt);
   t_solver_compute.stop();
+
+  std::cout << "transport map for target image found" << std::endl;
 
   std::cout << "STATS solver -- init: " << t_solver_init.value(REAL_TIMER) << "s  solve: " << t_solver_compute.value(REAL_TIMER) << "s\n";
 
@@ -227,19 +278,19 @@ int main(int argc, char** argv)
       //tile[j].y() *= 2;
     }
 
-    for (int j=0; j<tile.size(); j++) {
+    /*for (int j=0; j<tile.size(); j++) {
       tile[j].x() -= min_x;
       tile[j].y() -= min_y;
 
       tile[j].x() /= (max_x - min_x);
-      tile[j].y() /= (max_y - min_y);
+      tile[j].y() /= (max_x - min_x);
 
       /*double temp = tile[j].x();
       tile[j].x() = 1-tile[j].y();
       tile[j].y() = temp;*/
-    }
+    //}
 
-    printf("max_x = %f, max_y = %f\r\n", max_x, max_y);
+    //printf("max_x = %f, max_y = %f\r\n", max_x, max_y);
 
     // compute inverse map
     //Surface_mesh inv_map = tmap_src.origin_mesh();
@@ -260,19 +311,19 @@ int main(int argc, char** argv)
 
     std::vector<std::vector<double>> desired_normals;
 
-    for (int i=0; i<20; i++)
+    for (int i=0; i<5; i++)
     {
-        std::vector<std::vector<double>> normals = mesh.calculate_refractive_normals_uniform(trg_pts, 2, 1.49);
+        std::vector<std::vector<double>> normals = fresnelMapping(mesh.source_points, trg_pts, 1, 1.49);
 
-        desired_normals.clear();
+        //desired_normals.clear();
 
         // make a copy of the original positions of the vertices
-        for (int i = 0; i < mesh.source_points.size(); i++) {
+        /*for (int i = 0; i < mesh.source_points.size(); i++) {
             std::vector<double> trg_normal = {normals[0][i], normals[1][i], normals[2][i]};
             desired_normals.push_back(trg_normal);
-        }
+        }*/
 
-        normal_int.perform_normal_integration(mesh, desired_normals);
+        normal_int.perform_normal_integration(mesh, normals);
     }
 
     /*std::string filename = opts.out_prefix + "_" + std::to_string(opts.ores[i]);

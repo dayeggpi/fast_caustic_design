@@ -366,7 +366,7 @@ std::vector<std::vector<double>> Mesh::calculate_refractive_normals_uniform(std:
         std::vector<double> transmitted = {
             target_pts[i][0] - this->source_points[i][0],
             target_pts[i][1] - this->source_points[i][1],
-            0 - this->source_points[i][2]  + focal_len
+            target_pts[i][2] - this->source_points[i][2]  + focal_len
         };
 
         //std::vector<double> incident = {0.0f, 0.0f, 0.0f};
@@ -382,7 +382,7 @@ std::vector<std::vector<double>> Mesh::calculate_refractive_normals_uniform(std:
         double y_normal = transmitted[1] - incident[1] * refractive_index;
         double z_normal = transmitted[2] - incident[2] * refractive_index;
         
-        std::vector<double> normal = {x_normal, y_normal, -z_normal};
+        std::vector<double> normal = {-x_normal, -y_normal, z_normal};
 
         normal = normalize(normal);
 

@@ -11,8 +11,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-typedef std::vector<double> point_t;
-
 struct HashPair {
     template <class T1, class T2>
     std::size_t operator () (const std::pair<T1, T2>& p) const {
@@ -27,7 +25,7 @@ struct HashPair {
 class Mesh {
     private:
 
-        void generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<point_t> &points);
+        void generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<std::vector<double>> &points);
         void build_vertex_to_triangles();
 
     public:
@@ -36,8 +34,8 @@ class Mesh {
 
         std::unordered_map<int, std::vector<int>> vertex_to_triangles;
 
-        std::vector<point_t> source_points;
-        std::vector<point_t> target_points;
+        std::vector<std::vector<double>> source_points;
+        std::vector<std::vector<double>> target_points;
 
         std::vector<std::vector<int>> triangles;
 
@@ -57,7 +55,7 @@ class Mesh {
         void save_solid_obj_target(double thickness, const std::string& filename);
         void save_solid_obj_source(double thickness, const std::string& filename);
 
-        std::vector<point_t> circular_transform(std::vector<std::vector<double>> &input_points);
+        std::vector<std::vector<double>> circular_transform(std::vector<std::vector<double>> &input_points);
 
         void get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex);
 
