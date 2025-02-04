@@ -10,16 +10,13 @@ Mesh::Mesh(double width, double height, int res_x, int res_y)
     this->res_x = res_x;
     this->res_y = res_y;
 
-    // Build the parameterization mesh
-    generate_structured_mesh(res_x, res_y, width, height, this->triangles, this->target_points);
+    generate_structured_mesh(res_x, res_y, width, height, this->triangles, this->source_points);
+
+    //generate_poked_mesh(res_x, res_y, width, height, this->triangles, this->source_points);
+    
     build_vertex_to_triangles();
 
-    //circular_transform(this->target_points);
-
-    // Duplicate mesh points
-    for (int i=0; i<this->target_points.size(); i++) {
-        this->source_points.push_back(this->target_points[i]);
-    }
+    //this->source_points = circular_transform(this->source_points);
 }
 
 Mesh::~Mesh()
@@ -48,7 +45,7 @@ void find_perimeter_vertices(int nx, int ny, std::vector<int> &perimeter_vertice
     }
 }
 
-void save_solid_obj(std::vector<std::vector<double>> &front_points, std::vector<std::vector<double>> &back_points, std::vector<std::vector<int>> &triangles, double thickness, double width, double height, int res_x, int res_y, const std::string& filename) {
+void save_solid_obj(std::vector<std::vector<double>> &front_points, std::vector<std::vector<double>> &back_points, std::vector<std::vector<unsigned int>> &triangles, double thickness, double width, double height, int res_x, int res_y, const std::string& filename) {
     int num_points = front_points.size();
 
     std::ofstream file(filename);
@@ -112,8 +109,43 @@ void save_solid_obj(std::vector<std::vector<double>> &front_points, std::vector<
     //std::cout << "Exported model \"" << filename << "\"" << std::endl;
 }
 
+void Mesh::generate_poked_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<std::vector<double>> &points) {
+    double dx = width / (double)nx;
+    double dy = height / (double)ny;
+
+    // grid vertices
+    for (int y=0; y<ny + 1; y++){
+        for (int x=0; x<nx + 1; x++){
+            points.push_back({x*dx, y*dy, 0.0f});
+        }
+    }
+
+    // center vertices
+    for (int y=0; y<ny; y++){
+        for (int x=0; x<nx; x++){
+            points.push_back({(x + 0.5f)*dx, (y + 0.5f)*dy, 0.0f});
+        }
+    }
+
+    int offset = (nx + 1) * (ny + 1);
+    for (int y=0; y<ny; y++){
+        for (int x=0; x<nx; x++){
+            int upper_left = x + y * (nx + 1);
+            int upper_right = (x + 1) + y * (nx + 1);
+            int lower_left = x + (y + 1) * (nx + 1);
+            int lower_right = (x + 1) + (y + 1) * (nx + 1);
+            int center = offset + x + y * (nx);
+
+            triangles.push_back({upper_left, upper_right, center});
+            triangles.push_back({lower_left, upper_left, center});
+            triangles.push_back({lower_right, lower_left, center});
+            triangles.push_back({upper_right, lower_right, center});
+        }
+    }
+}
+
 // generates a structured triangulation used for the parameterization
-void Mesh::generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<std::vector<double>> &points) {
+void Mesh::generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<unsigned int>> &triangles, std::vector<std::vector<double>> &points) {
     printf("%i, %i, %f, %f\r\n", nx, ny, width, height);
     // Generate points
     for (int i = 0; i < ny; ++i) {
@@ -171,7 +203,7 @@ std::vector<std::vector<double>> Mesh::circular_transform(std::vector<std::vecto
 // build mapping from vertices to adjecent triangles -> used for creating dual cells
 void Mesh::build_vertex_to_triangles() {
     for (int i = 0; i < this->triangles.size(); ++i) {
-        const std::vector<int>& triangle = this->triangles[i];
+        const std::vector<unsigned int>& triangle = this->triangles[i];
         
         for (int vertex : triangle) {
             if (this->vertex_to_triangles.find(vertex) == this->vertex_to_triangles.end()) {
@@ -183,23 +215,34 @@ void Mesh::build_vertex_to_triangles() {
     }
 }
 
-// find triangles and edges connected to a specific vertex by index
-std::pair<std::vector<std::pair<int, int>>, std::vector<int>> Mesh::find_adjacent_elements(int vertex_index) {
+// find triangles, edges, and neighboring vertices connected to a specific vertex by index
+std::tuple<std::vector<std::pair<int, int>>, std::vector<int>, std::vector<int>> Mesh::find_adjacent_elements(int vertex_index) {
     std::unordered_set<std::pair<int, int>, HashPair> adjacent_edges;
     std::unordered_set<int> adjacent_triangles;
+    std::unordered_set<int> neighboring_vertices;
 
     // Find triangles containing the vertex
     auto triangles_containing_vertex = vertex_to_triangles.find(vertex_index);
     if (triangles_containing_vertex != vertex_to_triangles.end()) {
         for (int triangle_index : triangles_containing_vertex->second) {
             adjacent_triangles.insert(triangle_index);
-            const std::vector<int>& triangle = triangles[triangle_index];
+            const std::vector<unsigned int>& triangle = triangles[triangle_index];
 
-            // Find edges directly connected to the vertex
+            // Find edges and neighboring vertices directly connected to the vertex
             for (int j = 0; j < 3; ++j) {
-                std::pair<int, int> edge = std::make_pair(triangle[j], triangle[(j + 1) % 3]);
-                if (vertex_index == edge.first || vertex_index == edge.second) {
-                    adjacent_edges.insert(std::make_pair(std::min(edge.first, edge.second), std::max(edge.first, edge.second)));
+                int v1 = triangle[j];
+                int v2 = triangle[(j + 1) % 3];
+
+                // Add edge if it involves the vertex
+                if (vertex_index == v1 || vertex_index == v2) {
+                    adjacent_edges.insert(std::make_pair(std::min(v1, v2), std::max(v1, v2)));
+                }
+
+                // Add neighboring vertex (other vertex of the edge if it's not the input vertex)
+                if (v1 == vertex_index) {
+                    neighboring_vertices.insert(v2);
+                } else if (v2 == vertex_index) {
+                    neighboring_vertices.insert(v1);
                 }
             }
         }
@@ -208,8 +251,9 @@ std::pair<std::vector<std::pair<int, int>>, std::vector<int>> Mesh::find_adjacen
     // Convert sets to vectors
     std::vector<std::pair<int, int>> adjacent_edges_vector(adjacent_edges.begin(), adjacent_edges.end());
     std::vector<int> adjacent_triangles_vector(adjacent_triangles.begin(), adjacent_triangles.end());
+    std::vector<int> neighboring_vertices_vector(neighboring_vertices.begin(), neighboring_vertices.end());
 
-    return std::make_pair(adjacent_edges_vector, adjacent_triangles_vector);
+    return std::make_tuple(adjacent_edges_vector, adjacent_triangles_vector, neighboring_vertices_vector);
 }
 
 double calculate_polygon_area_vec(const std::vector<std::vector<double>> input_polygon) {
@@ -233,34 +277,32 @@ double calculate_polygon_area_vec(const std::vector<std::vector<double>> input_p
 
     return area;
 }
-
-// Find neighboring vertices by vertex index
 void Mesh::find_vertex_connectivity(int vertex_index, std::vector<int>& neighborList, std::vector<int>& neighborMap) {
     std::unordered_set<int> neighboring_vertices;
 
-    // Find triangles containing the vertex
     auto triangles_containing_vertex = vertex_to_triangles.find(vertex_index);
     if (triangles_containing_vertex != vertex_to_triangles.end()) {
-        // Iterate over each triangle that contains the vertex
         for (int triangle_index : triangles_containing_vertex->second) {
-            const std::vector<int>& triangle = triangles[triangle_index];
+            const std::vector<unsigned int>& triangle = triangles[triangle_index];
 
-            // Find the other vertices in the same triangle
             for (int j = 0; j < 3; ++j) {
                 if (triangle[j] != vertex_index) {
-                    neighboring_vertices.insert(triangle[j]);  // Collect unique neighbors
+                    neighboring_vertices.insert(triangle[j]);
                 }
             }
         }
 
-        // Convert set to vector to return unique neighboring vertices
-        neighborList = std::vector<int>(neighboring_vertices.begin(), neighboring_vertices.end());
+        neighborList.assign(neighboring_vertices.begin(), neighboring_vertices.end());
 
-        // Now construct neighborMap, ensuring pairs of neighbors are stored correctly
+        std::unordered_map<int, int> neighborIndexMap;
+        for (int i = 0; i < neighborList.size(); ++i) {
+            neighborIndexMap[neighborList[i]] = i;
+        }
+
         for (int triangle_index : triangles_containing_vertex->second) {
-            const std::vector<int>& triangle = triangles[triangle_index];
+            const std::vector<unsigned int>& triangle = triangles[triangle_index];
             
-            // Store indices of the two neighbors that form a face with the current vertex
+            // Find the two neighbors in the triangle
             std::vector<int> other_vertices;
             for (int j = 0; j < 3; ++j) {
                 if (triangle[j] != vertex_index) {
@@ -268,30 +310,22 @@ void Mesh::find_vertex_connectivity(int vertex_index, std::vector<int>& neighbor
                 }
             }
 
-            // We should always have exactly 2 "other vertices" per triangle containing this vertex
             if (other_vertices.size() == 2) {
                 int v1_idx = other_vertices[0];
                 int v2_idx = other_vertices[1];
 
-                // Find the indices of these vertices in neighborList and add to neighborMap
-                for (int i = 0; i < neighborList.size(); ++i) {
-                    if (neighborList[i] == v1_idx) {
-                        neighborMap.push_back(i);  // Add index of the first neighbor
-                    }
-                    if (neighborList[i] == v2_idx) {
-                        neighborMap.push_back(i);  // Add index of the second neighbor
-                    }
-                }
+                // Use the map for fast lookup of indices in neighborList
+                neighborMap.push_back(neighborIndexMap[v1_idx]);
+                neighborMap.push_back(neighborIndexMap[v2_idx]);
 
-                // Optionally, check triangle area to ensure correct orientation
-                std::vector<std::vector<double>> triangle = {
-                    source_points[vertex_index],  // Current vertex
-                    source_points[v1_idx],        // First neighbor
-                    source_points[v2_idx]         // Second neighbor
+                std::vector<std::vector<double>> triangle_points = {
+                    source_points[vertex_index],   // Current vertex
+                    source_points[v1_idx],         // First neighbor
+                    source_points[v2_idx]          // Second neighbor
                 };
-                double area = calculate_polygon_area_vec(triangle);
+                double area = calculate_polygon_area_vec(triangle_points);
 
-                // Swap the last two neighborMap entries if the area is negative (to correct orientation)
+                // Correct orientation if needed
                 if (area < 0.0) {
                     std::swap(neighborMap[neighborMap.size() - 1], neighborMap[neighborMap.size() - 2]);
                 }
@@ -299,6 +333,7 @@ void Mesh::find_vertex_connectivity(int vertex_index, std::vector<int>& neighbor
         }
     }
 }
+
 
 void Mesh::get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex) {
     int y = vertex_id / res_x;
@@ -345,69 +380,8 @@ std::vector<double> normalize(std::vector<double> p1) {
     return vec;
 }
 
-// calculate target vertex normals for refractive caustics
-std::vector<std::vector<double>> Mesh::calculate_refractive_normals_uniform(std::vector<std::vector<double>> target_pts, double focal_len, double refractive_index) {  
-    std::vector<double> x_normals;
-    std::vector<double> y_normals;
-    std::vector<double> z_normals;
-
-    // n = (t - µi) / ||(t - µi)||
-    // where:
-    // n = surface normal
-    // t = transmitted ray normal
-    // i = incident ray normal
-    // µ = refraction coefficient
-
-    //std::vector<double> point_src = {0, 0, -20.0f};
-
-    std::vector<double> incident = {0.0f, 0.0f, 1.0f};
-
-    for (int i=0; i<this->target_points.size(); i++) {
-        std::vector<double> transmitted = {
-            target_pts[i][0] - this->source_points[i][0],
-            target_pts[i][1] - this->source_points[i][1],
-            target_pts[i][2] - this->source_points[i][2]  + focal_len
-        };
-
-        //std::vector<double> incident = {0.0f, 0.0f, 0.0f};
-        //incident[0] = this->target_points[i][0] - point_src[0];
-        //incident[1] = this->target_points[i][1] - point_src[1];
-        //incident[2] = this->target_points[i][2] - point_src[2];
-
-        transmitted = normalize(transmitted);
-        incident = normalize(incident);
-
-        // t - µi
-        double x_normal = transmitted[0] - incident[0] * refractive_index;
-        double y_normal = transmitted[1] - incident[1] * refractive_index;
-        double z_normal = transmitted[2] - incident[2] * refractive_index;
-        
-        std::vector<double> normal = {-x_normal, -y_normal, z_normal};
-
-        normal = normalize(normal);
-
-        // (t - µi) / ||(t - µi)||
-        
-        /*
-        x_normals.push_back(normal[0]);
-        y_normals.push_back(normal[1]);
-        z_normals.push_back(normal[2]);
-        //*/
-
-        x_normals.push_back(normal[0]);
-        y_normals.push_back(normal[1]);
-        z_normals.push_back(normal[2]);
-    }
-
-    return {x_normals, y_normals, z_normals};
-}
-
 void Mesh::save_solid_obj_source(double thickness, const std::string& filename) {
     save_solid_obj(this->source_points, this->source_points, this->triangles, thickness, this->width, this->height, this->res_x, this->res_y, filename);
-}
-
-void Mesh::save_solid_obj_target(double thickness, const std::string& filename) {
-    save_solid_obj(this->target_points, this->source_points, this->triangles, thickness, this->width, this->height, this->res_x, this->res_y, filename);
 }
 
 bool Mesh::is_border(int vertex_id) {

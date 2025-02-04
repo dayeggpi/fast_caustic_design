@@ -74,7 +74,10 @@ Eigen::Vector2d TransportMap::inv_impl(const Eigen::Vector2d& p_in,bool fast_mod
     m_bvh_fwd->query_all(p,hits);
     if(hits.size()==0)
     {
-      std::cerr << "Error: no face found. " << p.transpose() << "\n";
+      Vector2d result;
+      //std::cerr << "Error: no face found. " << p.transpose() << "\n";
+      result << std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN();
+      return result;
     }
 
     Surface_mesh::Face f = hits[0].face_id;
@@ -182,7 +185,11 @@ apply_inverse_map(const otmap::TransportMap& tmap, std::vector<Vector2d> &points
   timer.start();
   for(int i=0; i<points.size(); ++i)
   {
-    points[i] = tmap.inv(points[i]);
+    Vector2d newPoint;
+    newPoint = tmap.inv(points[i]);
+    if (!std::isnan(newPoint[0]) && !std::isnan(newPoint[1])) {
+      points[i] = newPoint;
+    }
   }
   timer.stop();
   bvh_queries = timer.value(REAL_TIMER);

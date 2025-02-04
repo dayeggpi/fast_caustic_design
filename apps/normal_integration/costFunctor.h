@@ -4,11 +4,10 @@
 #include "ceres/ceres.h"
 #include "glog/logging.h"
 
-#define EBAR_DETH 39
-#define EINT_WEIGHT 0.1
+#define EINT_WEIGHT 0.01
 #define EBAR_WEIGHT 0.0
 #define EDIR_WEIGHT 5.0
-#define EREG_WEIGHT 10.0
+#define EREG_WEIGHT 1.0
 
 
 /******************************************************/
@@ -18,11 +17,11 @@
 using namespace std;
 
 template<typename T> void cross(T* v1, T* v2, T* result);
-template<typename T> void calcFaceNormal(const T* const v1, const T* const v2, const T* const v3, T* result);
 template<typename T> T angle(T* v1, T* v2);
 template<typename T> void normalize(T* v);
 template<typename T> T evaluateInt(const T* const vertex, const T** neighbors, uint nNeighbors, const vector<int> & neighborMap, const std::vector<double> &desiredNormal, T* result);
-template<typename T> void calcVertexNormal(const T* vertex, T* result, T** faceNormals, const T** neighbors, const vector<int> & neighborMap);
+template<typename T> T evaluateInt2(const T* const vertex, const T** neighbors, uint nNeighbors, const vector<int> & neighborMap, const std::vector<double> &desiredNormal, T* result);
+template<typename T> void calcVertexNormal(const T* vertex, std::vector<T> &result, const T** neighbors, const std::vector<int>& neighborMap);
 template<typename T> T evaluateReg(const T** const allVertices, const float* L, uint nVertices);
 
 
@@ -38,25 +37,44 @@ template<typename T> void cross(T* v1, T* v2, T* result)
     result[2] = T(v1[0]*v2[1] - v1[1]*v2[0]);
 }
 
-template<typename T> void calcFaceNormal(const T* const v1, const T* const v2, const T* const v3, T* result)
-{
-    T vertex1[3];
-    T vertex2[3];
-
-    vertex1[0] = v2[0] - v1[0];
-    vertex1[1] = v2[1] - v1[1];
-    vertex1[2] = v2[2] - v1[2];
-
-    vertex2[0] = v3[0] - v1[0];
-    vertex2[1] = v3[1] - v1[1];
-    vertex2[2] = v3[2] - v1[2];
-
-    cross(vertex1, vertex2, result);
-}
-
 template<typename T> T angle(T* v1, T* v2)
 {
-    return ceres::acos(v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]);
+    T dot = v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
+    T angle = ceres::acos(dot);
+    return angle;
+}
+
+template<typename T> std::vector<T> refract_T(
+    const std::vector<T> &surfaceNormal,
+    const std::vector<T>& rayDirection,
+    T n1,  // Index of refraction of the initial medium
+    T n2   // Index of refraction of the second medium
+) {
+    // Calculate the ratio of indices of refraction
+    T nRatio = n1 / n2;
+
+    // Calculate the dot product of surfaceNormal and rayDirection
+    T dotProduct = surfaceNormal[0] * rayDirection[0] +
+                        surfaceNormal[1] * rayDirection[1] +
+                        surfaceNormal[2] * rayDirection[2];
+
+    // Determine the cosine of the incident angle
+    T cosThetaI = -dotProduct;  // Cosine of the angle between the ray and the normal
+
+    // Calculate sin^2(thetaT) using Snell's Law
+    T sin2ThetaT = nRatio * nRatio * (T(1.0) - cosThetaI * cosThetaI);
+
+    // Compute cos(thetaT) for the refracted angle
+    T cosThetaT = ceres::sqrt(T(1.0) - sin2ThetaT);
+
+    // Calculate the refracted ray direction
+    std::vector<T> refractedRay(3);
+    for (int i = 0; i < 3; ++i) {
+        refractedRay[i] = nRatio * rayDirection[i] + 
+                          (nRatio * cosThetaI - cosThetaT) * surfaceNormal[i];
+    }
+
+    return refractedRay;
 }
 
 template<typename T> void normalize(T* v)
@@ -79,133 +97,117 @@ template<typename T> void normalize(T* v)
 
 template<typename T> T evaluateInt(const T* const vertex, const T** neighbors, uint nNeighbors, const vector<int> & neighborMap, const std::vector<double> &desiredNormal, T* result)
 {
-
-    T** faceNormals = new T*[neighborMap.size()/2];
-
-    // -- face normals
-    for(uint i=0; i<neighborMap.size(); i+=2)
-    {
-        int faceIndex = i/2;
-        faceNormals[faceIndex] = new T[3];
-        T* faceNormal = faceNormals[faceIndex];
-        const T* n1 = neighbors[neighborMap[i]];
-        const T* n2 = neighbors[neighborMap[i+1]];
-
-        calcFaceNormal(vertex, n1, n2, faceNormal);
-
-        if (faceNormal[2] < 0) {
-            //faceNormal[0] = -faceNormal[0];
-            //faceNormal[1] = -faceNormal[1];
-            //faceNormal[2] = -faceNormal[2];
-        }
-    }
-
     // -- vertex normal
-    T* vertexNormal = new T[3];
-    calcVertexNormal(vertex, vertexNormal, faceNormals, neighbors, neighborMap);
-
+    std::vector<T> vertexNormal(3);
+    calcVertexNormal(vertex, vertexNormal, neighbors, neighborMap);
 
     // evaluation
     T x = vertexNormal[0] - T(desiredNormal[0]);
     T y = vertexNormal[1] - T(desiredNormal[1]);
     T z = vertexNormal[2] - T(desiredNormal[2]);
 
-    T res = T(EINT_WEIGHT) * ceres::sqrt(x*x + y*y + z*z);
     result[0] = x*T(EINT_WEIGHT);
     result[1] = y*T(EINT_WEIGHT);
     result[2] = z*T(EINT_WEIGHT);
 
-    // -- clean
-    delete[] vertexNormal;
-
-    for(uint i=0; i<neighborMap.size(); i+=2)
-    {
-        delete[] faceNormals[i/2];
-    }
-
-    delete[] faceNormals;
-
-    // -- done
-
-    return res;
+    return T(0);
 }
 
-template<typename T> void calcVertexNormal(const T* vertex, T* result, T** faceNormals, const T** neighbors, const vector<int> & neighborMap)
+template<typename T> T evaluateInt2(const T* const vertex, const T** neighbors, uint nNeighbors, const vector<int> & neighborMap, const std::vector<double> &desiredNormal, T* result)
 {
-    result[0] = result[1] = result[2] = T(0);
+    // -- vertex normal
+    std::vector<T> vertexNormal(3);
+    calcVertexNormal(vertex, vertexNormal, neighbors, neighborMap);
 
-    T edge1Res[3];
-    T edge2Res[3];
-    T edge1[3];
-    T edge2[3];
-    T edge1Sub[3];
-    T edge2Sub[3];
+    std::vector<T> incidentLight(3);
+    incidentLight[0] = T(0.0);
+    incidentLight[1] = T(0.0);
+    incidentLight[2] = T(-1.0);
 
-    for(uint i=0; i<neighborMap.size(); i+=2)
-    {
+    T r = T(1.49);
 
-        for (uint j=0; j<3; j++)
-        {
-            edge1[j] = vertex[j];
-            edge2[j] = vertex[j];
-            edge1Sub[j] = neighbors[neighborMap[i]][j];
-            edge2Sub[j] = neighbors[neighborMap[i+1]][j];
+    vertexNormal[0] *= T(-1.0);
+    vertexNormal[1] *= T(-1.0);
+    vertexNormal[2] *= T(-1.0);
+
+    std::vector<T> refracted = refract_T(vertexNormal, incidentLight, r, T(1.0));
+
+    refracted[0] /= -(refracted[2] + vertex[2]);
+    refracted[1] /= -(refracted[2] + vertex[2]);
+    refracted[2] /= -(refracted[2] + vertex[2]);
+
+    refracted[0] += vertex[0];
+    refracted[1] += vertex[1];
+    refracted[2] += vertex[2];
+
+    // evaluation
+    T x = refracted[0] - T(desiredNormal[0]);
+    T y = refracted[1] - T(desiredNormal[1]);
+    T z = refracted[2] - T(desiredNormal[2]);
+
+    result[0] = x*T(EINT_WEIGHT);
+    result[1] = y*T(EINT_WEIGHT);
+    result[2] = z*T(EINT_WEIGHT);
+
+    return T(0);
+}
+
+template<typename T>
+void calcVertexNormal(const T* vertex, std::vector<T> &result, const T** neighbors, const std::vector<int>& neighborMap) {
+    result[0] = T(0);
+    result[1] = T(0);
+    result[2] = T(0);
+
+    for (uint i = 0; i < neighborMap.size() / 2; i++) {
+        T faceNormal[3] = {T(0), T(0), T(0)};
+        T edge1Res[3], edge2Res[3];
+        
+        // Calculate edge vectors
+        for (uint j = 0; j < 3; j++) {
+            edge1Res[j] = neighbors[neighborMap[i * 2]][j] - vertex[j];
+            edge2Res[j] = neighbors[neighborMap[i * 2 + 1]][j] - vertex[j];
         }
 
-
-        for(uint j=0; j<3; j++)
-        {
-            edge1Res[j] = edge1[j] - edge1Sub[j];
-            edge2Res[j] = edge2[j] - edge2Sub[j];
-        }
-
+        // Normalize if non-zero magnitude
         normalize(edge1Res);
         normalize(edge2Res);
 
+        // Calculate incident angle between edge vectors
         T incidentAngle = angle(edge1Res, edge2Res);
 
-        T* faceNormal = faceNormals[i/2];
+        // Calculate and normalize the cross product for the face normal
+        cross(edge1Res, edge2Res, faceNormal);
 
-        // use that angle as weighting
-        for (uint j=0; j<3; j++)
-        {
-            T val = faceNormal[j];
-            result[j] += val * incidentAngle;
+        // Accumulate weighted normal
+        for (uint j = 0; j < 3; j++) {
+            result[j] += -faceNormal[j] * incidentAngle;
         }
-
     }
 
-    normalize(result);
+    // Normalize the accumulated vertex normal
+    normalize(result.data());
 }
 
-
 // For EReg
-template<typename T> void evaluateReg(const T** const allVertices, const float* L, uint nVertices, T* res)
+template<typename T> void evaluateReg(const T** const allVertices, uint nVertices, T* res)
 {
+    float *L = new float[nVertices];
+    L[0] = - float(nVertices - 1);
+    for (uint i=1; i<nVertices; i++)
+    {
+        L[i] = 1;
+    }
 
-    for (uint i=0; i<3; i++)
+    for (uint i=0; i<3; i++) {
         res[i] = T(0);
-
-    if(nVertices == uint(5))
-    {
-        for(int i=0; i<nVertices; i++){
-            for (int j=0; j<3; j++){
-                res[j] += T(L[i]) * allVertices[i][j];
-            }
-        }
-    }
-    else
-    {
-        for(uint i=0; i<nVertices; i++)
-        {
-            res[0] = T(0);
-            res[1] = T(0);
-            res[2] += T(L[i]) * allVertices[i][2];
-        }
     }
 
-    for (uint i=0; i<3; i++)
-        res[i] = res[i] * T(EREG_WEIGHT);
+    for(uint i=0; i<nVertices; i++)
+    {
+        res[2] += T(L[i]) * allVertices[i][2] * T(EREG_WEIGHT);
+    }
+
+    delete L;
 }
 
 
@@ -457,232 +459,12 @@ private:
 
 };
 
-
-
-/****/
-
-inline void printLaplacien(float* L, int size){
-    std::cout<<"|"<<std::endl;
-    for (uint i=0; i<size; i++){
-        std::cout<<L[i]<<std::endl;
-    }
-    std::cout<<"|"<<std::endl;
-};
-
 /********* EReg *********/
-
-class CostFunctorEreg8Neighbors{
-public:
-    CostFunctorEreg8Neighbors(vector<int> neighbors){
-
-        uint size = neighbors.size() + 1;
-        L = new float[size];
-        L[0] = - float(neighbors.size());
-        for (uint i=1; i<size; i++)
-        {
-            L[i] = 1;
-        }
-        printLaplacien(L,8);
-    }
-
-    ~CostFunctorEreg8Neighbors()
-    {
-        delete[] L;
-    }
-
-    template <typename T> bool operator()(const T* const vertex,
-                                          const T* const neighbor1,
-                                          const T* const neighbor2,
-                                          const T* const neighbor3,
-                                          const T* const neighbor4,
-                                          const T* const neighbor5,
-                                          const T* const neighbor6,
-                                          const T* const neighbor7,
-                                          const T* const neighbor8,
-                                          T* residual) const
-    {
-
-        const T* allVertices[9];
-        allVertices[0] = vertex;
-        allVertices[1] = neighbor1;
-        allVertices[2] = neighbor2;
-        allVertices[3] = neighbor3;
-        allVertices[4] = neighbor4;
-        allVertices[5] = neighbor5;
-        allVertices[6] = neighbor6;
-        allVertices[7] = neighbor7;
-        allVertices[8] = neighbor8;
-
-
-        evaluateReg(allVertices, L, 9, residual);
-
-        return true;
-    }
-
-private:
-    float* L;
-};
-
-class CostFunctorEreg7Neighbors{
-public:
-    CostFunctorEreg7Neighbors(vector<int> neighbors){
-
-        uint size = neighbors.size() + 1;
-        L = new float[size];
-        L[0] = - float(neighbors.size());
-        for (uint i=1; i<size; i++)
-        {
-            L[i] = 1;
-        }
-    }
-
-    ~CostFunctorEreg7Neighbors()
-    {
-        delete[] L;
-    }
-
-    template <typename T> bool operator()(const T* const vertex,
-                                          const T* const neighbor1,
-                                          const T* const neighbor2,
-                                          const T* const neighbor3,
-                                          const T* const neighbor4,
-                                          const T* const neighbor5,
-                                          const T* const neighbor6,
-                                          const T* const neighbor7,
-                                          T* residual) const
-    {
-
-        const T* allVertices[8];
-        allVertices[0] = vertex;
-        allVertices[1] = neighbor1;
-        allVertices[2] = neighbor2;
-        allVertices[3] = neighbor3;
-        allVertices[4] = neighbor4;
-        allVertices[5] = neighbor5;
-        allVertices[6] = neighbor6;
-        allVertices[7] = neighbor7;
-
-
-        evaluateReg(allVertices, L, 8, residual);
-
-        return true;
-    }
-
-private:
-    float* L;
-};
-
-
-class CostFunctorEreg6Neighbors{
-public:
-    CostFunctorEreg6Neighbors(vector<int> neighbors){
-
-        uint size = neighbors.size() + 1;
-        L = new float[size];
-        L[0] = - float(neighbors.size());
-        for (uint i=1; i<size; i++)
-        {
-            L[i] = 1;
-        }
-    }
-
-    ~CostFunctorEreg6Neighbors()
-    {
-        delete[] L;
-    }
-
-    template <typename T> bool operator()(const T* const vertex,
-                                          const T* const neighbor1,
-                                          const T* const neighbor2,
-                                          const T* const neighbor3,
-                                          const T* const neighbor4,
-                                          const T* const neighbor5,
-                                          const T* const neighbor6,
-                                          T* residual) const
-    {
-
-        const T* allVertices[7];
-        allVertices[0] = vertex;
-        allVertices[1] = neighbor1;
-        allVertices[2] = neighbor2;
-        allVertices[3] = neighbor3;
-        allVertices[4] = neighbor4;
-        allVertices[5] = neighbor5;
-        allVertices[6] = neighbor6;
-
-
-        evaluateReg(allVertices, L, 7, residual);
-
-        return true;
-    }
-
-private:
-    float* L;
-};
-
-class CostFunctorEreg5Neighbors{
-public:
-    CostFunctorEreg5Neighbors(vector<int> neighbors){
-
-        uint size = neighbors.size() + 1;
-        L = new float[size];
-        L[0] = - float(neighbors.size());
-        for (uint i=1; i<size; i++)
-        {
-            L[i] = 1;
-        }
-    }
-
-    ~CostFunctorEreg5Neighbors()
-    {
-        delete[] L;
-    }
-
-    template <typename T> bool operator()(const T* const vertex,
-                                          const T* const neighbor1,
-                                          const T* const neighbor2,
-                                          const T* const neighbor3,
-                                          const T* const neighbor4,
-                                          const T* const neighbor5,
-                                          T* residual) const
-    {
-
-        const T* allVertices[6];
-        allVertices[0] = vertex;
-        allVertices[1] = neighbor1;
-        allVertices[2] = neighbor2;
-        allVertices[3] = neighbor3;
-        allVertices[4] = neighbor4;
-        allVertices[5] = neighbor5;
-
-
-        evaluateReg(allVertices, L, 6, residual);
-
-        return true;
-    }
-
-private:
-    float* L;
-};
 
 
 class CostFunctorEreg4Neighbors{
 public:
-    CostFunctorEreg4Neighbors(vector<int> neighbors){
-
-        uint size = neighbors.size() + 1;
-        L = new float[size];
-        L[0] = - float(neighbors.size());
-        for (uint i=1; i<size; i++)
-        {
-            L[i] = 1;
-        }
-    }
-
-    ~CostFunctorEreg4Neighbors()
-    {
-        delete[] L;
-    }
+    CostFunctorEreg4Neighbors(){}
 
     template <typename T> bool operator()(const T* const vertex,
                                           const T* const neighbor1,
@@ -700,33 +482,16 @@ public:
         allVertices[4] = neighbor4;
 
 
-        evaluateReg(allVertices, L, 5, residual);
+        evaluateReg(allVertices, 5, residual);
 
         return true;
     }
-
-private:
-    float* L;
 };
 
 
 class CostFunctorEreg3Neighbors{
 public:
-    CostFunctorEreg3Neighbors(vector<int> neighbors){
-
-        uint size = neighbors.size() + 1;
-        L = new float[size];
-        L[0] = - float(neighbors.size());
-        for (uint i=1; i<size; i++)
-        {
-            L[i] = 1;
-        }
-    }
-
-    ~CostFunctorEreg3Neighbors()
-    {
-        delete[] L;
-    }
+    CostFunctorEreg3Neighbors(){}
 
     template <typename T> bool operator()(const T* const vertex,
                                           const T* const neighbor1,
@@ -742,33 +507,16 @@ public:
         allVertices[3] = neighbor3;
 
 
-        evaluateReg(allVertices, L, 4, residual);
+        evaluateReg(allVertices, 4, residual);
 
         return true;
     }
-
-private:
-    float* L;
 };
 
 
 class CostFunctorEreg2Neighbors{
 public:
-    CostFunctorEreg2Neighbors(vector<int> neighbors){
-
-        uint size = neighbors.size() + 1;
-        L = new float[size];
-        L[0] = - float(neighbors.size());
-        for (uint i=1; i<size; i++)
-        {
-            L[i] = 1;
-        }
-    }
-
-    ~CostFunctorEreg2Neighbors()
-    {
-        delete[] L;
-    }
+    CostFunctorEreg2Neighbors(){}
 
     template <typename T> bool operator()(const T* const vertex,
                                           const T* const neighbor1,
@@ -782,13 +530,10 @@ public:
         allVertices[2] = neighbor2;
 
 
-        evaluateReg(allVertices, L, 3, residual);
+        evaluateReg(allVertices, 3, residual);
 
         return true;
     }
-
-private:
-    float* L;
 };
 
 /********* EBar *********/

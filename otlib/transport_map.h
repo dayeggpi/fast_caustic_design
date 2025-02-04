@@ -48,8 +48,8 @@ public:
   std::shared_ptr<surface_mesh::Surface_mesh> fwd_mesh_ptr() { return m_fwd_mesh; }
   std::shared_ptr<Eigen::VectorXd> density_ptr() { return m_density; }
 
-  const surface_mesh::Surface_mesh& origin_mesh() const { return *m_origin_mesh; }
-  const surface_mesh::Surface_mesh& fwd_mesh() const { return *m_fwd_mesh; }
+  const surface_mesh::Surface_mesh& origin_mesh() { return *m_origin_mesh; }
+  const surface_mesh::Surface_mesh& fwd_mesh() { return *m_fwd_mesh; }
   const Eigen::VectorXd& density() const { return *m_density; }
 
 

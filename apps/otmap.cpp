@@ -106,14 +106,14 @@ int main(int argc, char**argv)
   std::cout << "Save densities, forward and inverse maps...\n";
   for(int k=0; k<tmaps.size(); ++k)
   {
-    tmaps[k].fwd_mesh().write(opts.out_prefix + "_" + char('u'+k) + "_fwd.off");
+    tmaps[k].fwd_mesh().write(opts.out_prefix + "_" + char('u'+k) + "_fwd.obj");
 
     std::cout << "Transport cost: " << transport_cost(tmaps[k].origin_mesh(), tmaps[k].fwd_mesh(), tmaps[k].density()) << std::endl;
 
     // compute inverse map
     Surface_mesh inv_map = tmaps[k].origin_mesh();
     apply_inverse_map(tmaps[k], inv_map.points(), opts.verbose_level);
-    inv_map.write(opts.out_prefix + "_" + char('u'+k) + "_inv.off");
+    inv_map.write(opts.out_prefix + "_" + char('u'+k) + "_inv.obj");
   }
 
   std::cout << "Generate and save composite maps...\n";
@@ -126,14 +126,14 @@ int main(int argc, char**argv)
     std::cout << "Transport cost of map u->v : " << transport_cost(tmaps[0].origin_mesh(), map_uv, tmaps[0].density()) << std::endl;
     synthetize_and_export_image(map_uv, img_res, tmaps[1].density(), std::string(opts.out_prefix).append("_map_uv_reconstructed"), tmaps[0].density());
     prune_empty_faces(map_uv,tmaps[0].density());
-    map_uv.write(std::string(opts.out_prefix).append("_map_uv.off"));
+    map_uv.write(std::string(opts.out_prefix).append("_map_uv.obj"));
 
     Surface_mesh map_vu = tmaps[1].fwd_mesh();
     apply_inverse_map(tmaps[0], map_vu.points(), opts.verbose_level);
     std::cout << "Transport cost of map v->u : " << transport_cost(tmaps[1].origin_mesh(), map_vu, tmaps[1].density()) << std::endl;
     synthetize_and_export_image(map_vu, img_res, tmaps[0].density(), std::string(opts.out_prefix).append("_map_vu_reconstructed"), tmaps[1].density());
     prune_empty_faces(map_vu,tmaps[1].density());
-    map_vu.write(std::string(opts.out_prefix).append("_map_vu.off"));
+    map_vu.write(std::string(opts.out_prefix).append("_map_vu.obj"));
   }
 
   return 0;

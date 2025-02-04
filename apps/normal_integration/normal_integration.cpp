@@ -26,6 +26,7 @@ void normal_integration::addResidualBlocks(Mesh &mesh, Problem *problem, uint ve
                 );
 
 
+    //if (true) {
     if(!mesh.is_border(vertexIndex)){ //not an edge we optimize the normals
         // For eint we have several functors, each for a different amount of neighbors
         switch(neighbors.size()){
@@ -161,7 +162,7 @@ void normal_integration::addResidualBlocks(Mesh &mesh, Problem *problem, uint ve
     {
     case 2:
 
-        ereg = new AutoDiffCostFunction<CostFunctorEreg2Neighbors, 3, 3, 3, 3>(new CostFunctorEreg2Neighbors(gridNeighbors));
+        ereg = new AutoDiffCostFunction<CostFunctorEreg2Neighbors, 3, 3, 3, 3>(new CostFunctorEreg2Neighbors());
         problem->AddResidualBlock(
                     ereg,
                     NULL,
@@ -172,7 +173,7 @@ void normal_integration::addResidualBlocks(Mesh &mesh, Problem *problem, uint ve
         break;
     case 3:
 
-        ereg = new AutoDiffCostFunction<CostFunctorEreg3Neighbors, 3, 3, 3, 3, 3>(new CostFunctorEreg3Neighbors(gridNeighbors));
+        ereg = new AutoDiffCostFunction<CostFunctorEreg3Neighbors, 3, 3, 3, 3, 3>(new CostFunctorEreg3Neighbors());
         problem->AddResidualBlock(
                     ereg,
                     NULL,
@@ -184,7 +185,7 @@ void normal_integration::addResidualBlocks(Mesh &mesh, Problem *problem, uint ve
         break;
     case 4:
 
-        ereg = new AutoDiffCostFunction<CostFunctorEreg4Neighbors, 3, 3, 3, 3, 3, 3>(new CostFunctorEreg4Neighbors(gridNeighbors));
+        ereg = new AutoDiffCostFunction<CostFunctorEreg4Neighbors, 3, 3, 3, 3, 3, 3>(new CostFunctorEreg4Neighbors());
         problem->AddResidualBlock(
                     ereg,
                     NULL,
@@ -239,7 +240,7 @@ void normal_integration::initialize_data(Mesh &mesh) {
     neighborMapPerVertex.resize(mesh.source_points.size());
     eightNeighborsPerVertex.resize(mesh.source_points.size());
 
-        // gather information for each vertex to optimize
+    // gather information for each vertex to optimize
     for(uint i = 0; i < mesh.source_points.size(); i++)
     {
         std::vector<int> neighbors;
@@ -254,6 +255,40 @@ void normal_integration::initialize_data(Mesh &mesh) {
     }
 
     vertices = new double[3*mesh.source_points.size()];
+}
+
+std::vector<std::vector<double>> normal_integration::calculate_vertex_normals(Mesh &mesh) {
+    std::vector<std::vector<double>> vertexNormals(mesh.source_points.size());
+    for (int i=0; i<mesh.source_points.size(); i++) {
+        std::vector<int> neighbors_v;
+        std::vector<int> neighborMap;
+        std::vector<int> eightNeighbors;
+
+        gatherVertexInformation(mesh, i, neighbors_v, neighborMap, eightNeighbors);
+
+        double** neighbors = new double*[neighbors_v.size()];
+
+        // Step 2: Allocate each row (array of doubles)
+        for (int j = 0; j < neighbors_v.size(); ++j) {
+            neighbors[j] = new double[3];
+        }
+
+        for (int j=0; j<neighbors_v.size(); j++) {
+            neighbors[j][0] = mesh.source_points[neighbors_v[j]][0];
+            neighbors[j][1] = mesh.source_points[neighbors_v[j]][1];
+            neighbors[j][2] = mesh.source_points[neighbors_v[j]][2];
+        }
+
+        // -- vertex normal
+        std::vector<double> vertexNormal(3);
+
+        calcVertexNormal<double>(mesh.source_points[i].data(), vertexNormal, (const double**)neighbors, neighborMap);
+        normalize(vertexNormal.data());
+
+        vertexNormals[i] = {vertexNormal[0], vertexNormal[1], vertexNormal[2]};
+    }
+
+    return vertexNormals;
 }
 
 void normal_integration::perform_normal_integration(Mesh &mesh, std::vector<std::vector<double>> &desired_normals) {

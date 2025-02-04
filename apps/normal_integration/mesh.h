@@ -25,8 +25,8 @@ struct HashPair {
 class Mesh {
     private:
 
-        void generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<std::vector<double>> &points);
-        void build_vertex_to_triangles();
+        void generate_structured_mesh(int nx, int ny, double width, double height, std::vector<std::vector<unsigned int>> &triangles, std::vector<std::vector<double>> &points);
+        void generate_poked_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<std::vector<double>> &points);
 
     public:
         Mesh(double width, double height, int res_x, int res_y);
@@ -35,9 +35,8 @@ class Mesh {
         std::unordered_map<int, std::vector<int>> vertex_to_triangles;
 
         std::vector<std::vector<double>> source_points;
-        std::vector<std::vector<double>> target_points;
 
-        std::vector<std::vector<int>> triangles;
+        std::vector<std::vector<unsigned int>> triangles;
 
         double width;
         double height;
@@ -45,14 +44,15 @@ class Mesh {
         int res_x;
         int res_y;
 
-        std::pair<std::vector<std::pair<int, int>>, std::vector<int>> find_adjacent_elements(int vertex_index);
+        void build_vertex_to_triangles();
+
+        std::tuple<std::vector<std::pair<int, int>>, std::vector<int>, std::vector<int>> find_adjacent_elements(int vertex_index);
 
         void find_vertex_connectivity(int vertex_index, std::vector<int> &neighborList, std::vector<int> &neighborMap);
 
         std::vector<std::vector<double>> calculate_refractive_normals(double focal_len, double refractive_index);
         std::vector<std::vector<double>> calculate_refractive_normals_uniform(std::vector<std::vector<double>> target_pts, double focal_len, double refractive_index); 
 
-        void save_solid_obj_target(double thickness, const std::string& filename);
         void save_solid_obj_source(double thickness, const std::string& filename);
 
         std::vector<std::vector<double>> circular_transform(std::vector<std::vector<double>> &input_points);

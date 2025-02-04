@@ -31,4 +31,6 @@ public:
     void initialize_data(Mesh &mesh);
 
     void perform_normal_integration(Mesh &mesh, std::vector<std::vector<double>> &desired_normals);
+
+    std::vector<std::vector<double>> calculate_vertex_normals(Mesh &mesh);
 };
