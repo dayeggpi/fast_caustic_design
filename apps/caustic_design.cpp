@@ -8,7 +8,6 @@
 // with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iostream>
-#include "otsolver_2dgrid.h"
 #include "common/otsolver_options.h"
 #include "utils/eigen_addons.h"
 #include "common/image_utils.h"
@@ -447,18 +446,6 @@ double magnitude(std::vector<double> a) {
   return std::sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
 }
 
-double cot(const std::vector<double>& a, const std::vector<double>& b) {
-    auto cross_product = cross(a, b);
-    double cross_magnitude = magnitude(cross_product);
-
-    if (cross_magnitude < 1e-12) {
-        //throw std::invalid_argument("Vectors are parallel or one is a zero vector, cotangent undefined.");
-        cross_magnitude = 1e-12;
-    }
-
-    return dot(a, b) / cross_magnitude;
-}
-
 // https://stackoverflow.com/questions/29758545/how-to-find-refraction-vector-from-incoming-vector-and-surface-normal
 /*std::vector<double> refract(const std::vector<double>& normal, const std::vector<double>& incident, double n1, double n2) {
     // Ratio of refractive indices
@@ -577,95 +564,6 @@ void project_onto_boundary(std::vector<double> &point) {
   point[1] += 0.5;
 }
 
-std::vector<double> compute_laplacian(Mesh &mesh, std::vector<int> adjacent_triangles, std::vector<int> neighboring_vertices, int i) {
-    std::vector<double> laplacian(neighboring_vertices.size(), 0.0f);
-
-    for (int j_index = 0; j_index < neighboring_vertices.size(); ++j_index) {
-        int j = neighboring_vertices[j_index];
-
-        // Find triangles shared between `i` and `j`
-        std::vector<int> shared_triangles;
-        for (int triangle : adjacent_triangles) {
-          // Check if `j` is one of the vertices in this triangle
-          const auto& vertices = mesh.triangles[triangle];
-          if (std::find(vertices.begin(), vertices.end(), j) != vertices.end()) {
-              shared_triangles.push_back(triangle);
-          }
-        }
-
-        // Handle cases based on the number of shared triangles
-        if (shared_triangles.size() == 2) {
-            // Interior case: Two triangles are connected
-            std::vector<int> k_vertices;
-            for (int triangle : shared_triangles) {
-                for (int vertex : mesh.triangles[triangle]) {
-                    if (vertex != i && vertex != j) {
-                        k_vertices.push_back(vertex);
-                        break; // Only one `k` per triangle
-                    }
-                }
-            }
-
-            // Ensure we found two `k` vertices
-            if (k_vertices.size() != 2) {
-                throw std::runtime_error("Error identifying k vertices in triangles.");
-            }
-
-            int k1 = k_vertices[0];
-            int k2 = k_vertices[1];
-
-            std::vector<double> edge1;
-            std::vector<double> edge2;
-
-            edge1 = sub(mesh.source_points[k1], mesh.source_points[j]);
-            edge2 = sub(mesh.source_points[k1], mesh.source_points[i]);
-            double cot_k1 = cot(edge1, edge2);
-
-            edge1 = sub(mesh.source_points[k2], mesh.source_points[j]);
-            edge2 = sub(mesh.source_points[k2], mesh.source_points[i]);
-            double cot_k2 = cot(edge1, edge2);
-
-            laplacian[j_index] += cot_k1;
-            laplacian[j_index] += cot_k2;
-
-            //std::cout << "k1=" << k1 << ", k2=" << k2 << std::endl;
-
-        } else if (shared_triangles.size() == 1) {
-            // Boundary case: Only one triangle is connected
-            int triangle = shared_triangles[0];
-            int k = -1;
-
-            // Find the single `k` vertex
-            for (int vertex : mesh.triangles[triangle]) {
-                if (vertex != i && vertex != j) {
-                    k = vertex;
-                    break;
-                }
-            }
-
-            if (k == -1) {
-                throw std::runtime_error("Error identifying k vertex in boundary triangle.");
-            }
-
-            std::vector<double> edge1;
-            std::vector<double> edge2;
-
-            edge1 = sub(mesh.source_points[k], mesh.source_points[j]);
-            edge2 = sub(mesh.source_points[k], mesh.source_points[i]);
-            double cot_k = cot(edge1, edge2);
-
-            laplacian[j_index] += cot_k;
-
-            //std::cout << "k=" << k << std::endl;
-
-        } else {
-            throw std::runtime_error("No shared triangles between i and j; invalid mesh or disconnected vertex.");
-        }
-    }
-
-    return laplacian;
-}
-
 //compute the desired normals
 std::vector<std::vector<double>> fresnelMapping(
   std::vector<std::vector<double>> &vertices, 
@@ -742,9 +640,9 @@ std::vector<std::vector<double>> fresnelMapping(
 
         std::vector<double> normal(3);
         if (use_reflective_caustics) {
-            normal[0] = ((transmitted[0]) - incidentLight[0]) * 1.0f;
-            normal[1] = ((transmitted[1]) - incidentLight[1]) * 1.0f;
-            normal[2] = ((transmitted[2]) - incidentLight[2]) * 1.0f;
+            normal[0] = ((transmitted[0]) + incidentLight[0]) * 1.0f;
+            normal[1] = ((transmitted[1]) + incidentLight[1]) * 1.0f;
+            normal[2] = ((transmitted[2]) + incidentLight[2]) * 1.0f;
         } else {
             normal[0] = ((transmitted[0]) - (incidentLight[0]) * refractive_index) * -1.0f;
             normal[1] = ((transmitted[1]) - (incidentLight[1]) * refractive_index) * -1.0f;
@@ -758,7 +656,6 @@ std::vector<std::vector<double>> fresnelMapping(
 
     return desiredNormals;
 }
-
 
 int main(int argc, char** argv)
 {
@@ -835,6 +732,8 @@ int main(int argc, char** argv)
   translatePoints(trg_pts, {0, 0, -opts.focal_l});
 
   double r = 1.55;
+
+  mesh.calculate_vertex_laplacians();
 
   for (int i=0; i<10; i++)
   {

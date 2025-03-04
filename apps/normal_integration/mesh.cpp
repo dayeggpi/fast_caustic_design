@@ -19,6 +19,21 @@ Mesh::Mesh(double width, double height, int res_x, int res_y)
     //this->source_points = circular_transform(this->source_points);
 }
 
+Mesh::Mesh(std::vector<std::vector<double>> new_points, std::vector<std::vector<unsigned int>> new_triangles)
+{
+    for (int i = 0; i < new_points.size(); i++)
+    {
+        this->source_points.push_back(new_points[i]);
+    }
+
+    for (int i = 0; i < new_triangles.size(); i++)
+    {
+        this->triangles.push_back(new_triangles[i]);
+    }
+
+    build_vertex_to_triangles();
+}
+
 Mesh::~Mesh()
 {
 }
@@ -109,7 +124,7 @@ void save_solid_obj(std::vector<std::vector<double>> &front_points, std::vector<
     //std::cout << "Exported model \"" << filename << "\"" << std::endl;
 }
 
-void Mesh::generate_poked_mesh(int nx, int ny, double width, double height, std::vector<std::vector<int>> &triangles, std::vector<std::vector<double>> &points) {
+void Mesh::generate_poked_mesh(int nx, int ny, double width, double height, std::vector<std::vector<unsigned int>> &triangles, std::vector<std::vector<double>> &points) {
     double dx = width / (double)nx;
     double dy = height / (double)ny;
 
@@ -159,7 +174,7 @@ void Mesh::generate_structured_mesh(int nx, int ny, double width, double height,
     // Generate triangles
     for (int i = 0; i < ny - 1; ++i) {
         for (int j = 0; j < nx - 1; ++j) {
-            int idx = i * nx + j;
+            unsigned int idx = i * nx + j;
             triangles.push_back({idx, idx + 1, idx + nx});
             triangles.push_back({idx + nx, idx + 1, idx + nx + 1});
         }
@@ -256,6 +271,33 @@ std::tuple<std::vector<std::pair<int, int>>, std::vector<int>, std::vector<int>>
     return std::make_tuple(adjacent_edges_vector, adjacent_triangles_vector, neighboring_vertices_vector);
 }
 
+std::vector<double> calculate_polygon_centroid(std::vector<std::vector<double>> vertices) {
+    std::vector<double> centroid;
+    centroid.push_back(0.0);
+    centroid.push_back(0.0);
+
+    double signed_area = 0;
+
+    for (int i = 0; i < vertices.size(); i++) {
+        double x0 = vertices[i][0];
+        double y0 = vertices[i][1];
+        double x1 = vertices[(i + 1) % vertices.size()][0];
+        double y1 = vertices[(i + 1) % vertices.size()][1];
+
+        // Shoelace formula
+        double area = (x0 * y1) - (x1 * y0);
+        signed_area += area;
+        centroid[0] += (x0 + x1) * area;
+        centroid[1] += (y0 + y1) * area;
+    }
+
+    signed_area *= 0.5;
+    centroid[0] /= 6 * signed_area;
+    centroid[1] /= 6 * signed_area;
+
+    return centroid;
+}
+
 double calculate_polygon_area_vec(const std::vector<std::vector<double>> input_polygon) {
     if (input_polygon.size() < 3) {
         return 0.0;
@@ -277,6 +319,7 @@ double calculate_polygon_area_vec(const std::vector<std::vector<double>> input_p
 
     return area;
 }
+
 void Mesh::find_vertex_connectivity(int vertex_index, std::vector<int>& neighborList, std::vector<int>& neighborMap) {
     std::unordered_set<int> neighboring_vertices;
 
@@ -334,6 +377,186 @@ void Mesh::find_vertex_connectivity(int vertex_index, std::vector<int>& neighbor
     }
 }
 
+bool Mesh::is_boundary_vertex(int vertex_index, std::vector<std::pair<int, int>>& boundary_edges) {
+    std::unordered_map<std::pair<int, int>, int, HashPair> edge_triangle_count;
+    for (int triangle_index : vertex_adjecent_triangles[vertex_index]) {
+        const std::vector<unsigned int>& triangle = triangles[triangle_index];
+        for (int j = 0; j < 3; ++j) {
+            int v1 = triangle[j];
+            int v2 = triangle[(j + 1) % 3];
+            std::pair<int, int> edge = std::make_pair(std::min(v1, v2), std::max(v1, v2));
+            edge_triangle_count[edge]++;
+        }
+    }
+
+    bool is_boundary = false;
+    for (const auto& edge : vertex_adjecent_edges[vertex_index]) {
+        if (edge_triangle_count[edge] == 1) { // Boundary edge
+            boundary_edges.push_back(edge);
+            is_boundary = true;
+        }
+    }
+
+    return is_boundary;
+}
+
+void Mesh::build_adjacency_lookups() {
+    for (int i = 0; i < source_points.size(); i++)
+    {
+        auto [adjacent_edges, adjacent_triangles, neighboring_vertices] = find_adjacent_elements(i);
+        vertex_adjecent_edges.push_back(adjacent_edges);
+        vertex_adjecent_triangles.push_back(adjacent_triangles);
+        vertex_adjecent_vertices.push_back(neighboring_vertices);
+    }
+
+    for (int i = 0; i < source_points.size(); i++)
+    {
+        std::vector<std::pair<int, int>> boundary_edges;
+        bool is_boundary = is_boundary_vertex(i, boundary_edges);
+        vertex_is_boundary.push_back(is_boundary);
+    }
+    
+    
+}
+
+std::vector<double> cross_v(std::vector<double> v1, std::vector<double> v2){
+  std::vector<double> result(3);
+  result[0] = v1[1]*v2[2] - v1[2]*v2[1];
+  result[1] = v1[2]*v2[0] - v1[0]*v2[2];
+  result[2] = v1[0]*v2[1] - v1[1]*v2[0];
+  return result;
+}
+
+double dot_v(std::vector<double> a, std::vector<double> b) {
+  return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+}
+
+std::vector<double> mult_v(double a, std::vector<double> b) {
+  return {a*b[0], a*b[1], a*b[2]};
+}
+
+std::vector<double> add_v(std::vector<double> a, std::vector<double> b) {
+  return {a[0] + b[0], a[1] + b[1], a[2] + b[2]};
+}
+
+std::vector<double> sub_v(std::vector<double> a, std::vector<double> b) {
+  return {a[0] - b[0], a[1] - b[1], a[2] - b[2]};
+}
+
+double magnitude_v(std::vector<double> a) {
+  return std::sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
+}
+
+double cot(const std::vector<double>& a, const std::vector<double>& b) {
+    auto cross_product = cross_v(a, b);
+    double cross_magnitude = magnitude_v(cross_product);
+
+    if (cross_magnitude < 1e-12) {
+        //throw std::invalid_argument("Vectors are parallel or one is a zero vector, cotangent undefined.");
+        cross_magnitude = 1e-12;
+    }
+
+    return dot_v(a, b) / cross_magnitude;
+}
+
+std::vector<double> Mesh::compute_laplacian(int i) {
+    std::vector<double> laplacian(vertex_adjecent_vertices[i].size(), 0.0f);
+
+    for (int j_index = 0; j_index < vertex_adjecent_vertices[i].size(); ++j_index) {
+        int j = vertex_adjecent_vertices[i][j_index];
+
+        // Find triangles shared between `i` and `j`
+        std::vector<int> shared_triangles;
+        for (int triangle : vertex_adjecent_triangles[i]) {
+          // Check if `j` is one of the vertices in this triangle
+          const auto& vertices = triangles[triangle];
+          if (std::find(vertices.begin(), vertices.end(), j) != vertices.end()) {
+              shared_triangles.push_back(triangle);
+          }
+        }
+
+        // Handle cases based on the number of shared triangles
+        if (shared_triangles.size() == 2) {
+            // Interior case: Two triangles are connected
+            std::vector<int> k_vertices;
+            for (int triangle : shared_triangles) {
+                for (int vertex : this->triangles[triangle]) {
+                    if (vertex != i && vertex != j) {
+                        k_vertices.push_back(vertex);
+                        break; // Only one `k` per triangle
+                    }
+                }
+            }
+
+            // Ensure we found two `k` vertices
+            if (k_vertices.size() != 2) {
+                throw std::runtime_error("Error identifying k vertices in triangles.");
+            }
+
+            int k1 = k_vertices[0];
+            int k2 = k_vertices[1];
+
+            std::vector<double> edge1;
+            std::vector<double> edge2;
+
+            edge1 = sub_v(this->source_points[k1], this->source_points[j]);
+            edge2 = sub_v(this->source_points[k1], this->source_points[i]);
+            double cot_k1 = cot(edge1, edge2);
+
+            edge1 = sub_v(this->source_points[k2], this->source_points[j]);
+            edge2 = sub_v(this->source_points[k2], this->source_points[i]);
+            double cot_k2 = cot(edge1, edge2);
+
+            laplacian[j_index] += cot_k1;
+            laplacian[j_index] += cot_k2;
+
+            //std::cout << "k1=" << k1 << ", k2=" << k2 << std::endl;
+
+        } else if (shared_triangles.size() == 1) {
+            // Boundary case: Only one triangle is connected
+            int triangle = shared_triangles[0];
+            int k = -1;
+
+            // Find the single `k` vertex
+            for (int vertex : this->triangles[triangle]) {
+                if (vertex != i && vertex != j) {
+                    k = vertex;
+                    break;
+                }
+            }
+
+            if (k == -1) {
+                throw std::runtime_error("Error identifying k vertex in boundary triangle.");
+            }
+
+            std::vector<double> edge1;
+            std::vector<double> edge2;
+
+            edge1 = sub_v(this->source_points[k], this->source_points[j]);
+            edge2 = sub_v(this->source_points[k], this->source_points[i]);
+            double cot_k = cot(edge1, edge2);
+
+            laplacian[j_index] += cot_k;
+
+            //std::cout << "k=" << k << std::endl;
+
+        } else {
+            throw std::runtime_error("No shared triangles between i and j; invalid mesh or disconnected vertex.");
+        }
+    }
+
+    return laplacian;
+}
+
+void Mesh::calculate_vertex_laplacians() {
+    build_adjacency_lookups();
+    vertex_laplacians.clear();
+    
+    for (int i = 0; i < this->source_points.size(); i++)
+    {
+        vertex_laplacians.push_back(compute_laplacian(i));
+    }
+}
 
 void Mesh::get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex) {
     int y = vertex_id / res_x;

@@ -72,6 +72,11 @@
         "typeindex": "cpp",
         "typeinfo": "cpp",
         "valarray": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "any": "cpp",
+        "strstream": "cpp",
+        "bitset": "cpp",
+        "future": "cpp",
+        "stdfloat": "cpp"
     }
 }

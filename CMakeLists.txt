@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "Release")
+  set(CMAKE_BUILD_TYPE RELEASE)
 endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -34,7 +34,7 @@ if(USE_CIMAGE)
    if(WIN32)
       add_definitions(-Dcimg_OS=2)
    else()
-      add_definitions(-Dcimg_OS=0)
+      add_definitions(-Dcimg_OS=1)
    endif()
 endif()
 
@@ -54,6 +54,13 @@ endif()
 
 find_package(Ceres REQUIRED)
 include_directories(${CERES_INCLUDE_DIRS})
+
+find_package(CGAL REQUIRED)
+include_directories(${CGAL_INCLUDE_DIRS})
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMake/")
+find_package(LBFGS REQUIRED)
+include_directories(${LBFGS_INCLUDE_DIRS})
 
 ## FILES ##########################################################################
 set(SURFACE_MESH_SRC_FILES
@@ -139,4 +146,4 @@ add_executable(barycenters apps/barycenters.cpp)
 target_link_libraries(barycenters otapputils otlib ${ALLLIBS})
 
 add_executable(caustic_design apps/caustic_design.cpp)
-target_link_libraries(caustic_design otapputils otlib ${ALLLIBS} ${CERES_LIBRARIES})
+target_link_libraries(caustic_design otapputils otlib ${ALLLIBS} ${CERES_LIBRARIES} ${CGAL_LIBRARIES} ${LBFGS_LIBRARIES} CGAL::CGAL)
