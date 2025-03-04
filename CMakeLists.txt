@@ -55,13 +55,6 @@ endif()
 find_package(Ceres REQUIRED)
 include_directories(${CERES_INCLUDE_DIRS})
 
-find_package(CGAL REQUIRED)
-include_directories(${CGAL_INCLUDE_DIRS})
-
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMake/")
-find_package(LBFGS REQUIRED)
-include_directories(${LBFGS_INCLUDE_DIRS})
-
 ## FILES ##########################################################################
 set(SURFACE_MESH_SRC_FILES
     otlib/surface_mesh/IO.cpp
@@ -146,4 +139,4 @@ add_executable(barycenters apps/barycenters.cpp)
 target_link_libraries(barycenters otapputils otlib ${ALLLIBS})
 
 add_executable(caustic_design apps/caustic_design.cpp)
-target_link_libraries(caustic_design otapputils otlib ${ALLLIBS} ${CERES_LIBRARIES} ${CGAL_LIBRARIES} ${LBFGS_LIBRARIES} CGAL::CGAL)
+target_link_libraries(caustic_design otapputils otlib ${ALLLIBS} ${CERES_LIBRARIES})
