@@ -39,6 +39,7 @@ if(USE_CIMAGE)
 endif()
 
 include_directories(extern/)
+include_directories(extern/eigen)
 include_directories(otlib/)
 
 find_package(Cholmod)

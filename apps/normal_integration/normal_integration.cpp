@@ -25,8 +25,8 @@ void normal_integration::addResidualBlocks(Mesh &mesh, Problem *problem, uint ve
                 &vertices[vertexIndex*3]
                 );
 
-    //if (true) {
-    if(!mesh.is_border(vertexIndex)){ //not an edge we optimize the normals
+    if (true) {
+    //if(!mesh.is_border(vertexIndex)){ //not an edge we optimize the normals
         // For eint we have several functors, each for a different amount of neighbors
         switch(neighbors.size()){
         case 2:

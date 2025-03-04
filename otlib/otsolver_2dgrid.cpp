@@ -335,7 +335,13 @@ initialize_laplacian_solver()
     // Compute custom fill-in permutation
     PermutationMatrix<Dynamic,Dynamic,int> perm(nf);
     nestdiss_ordering(m_gridSize,perm.indices().data());
-    m_laplacian_solver.setPermutation(perm);
+    
+    // Apply the permutation to reorder the Laplacian matrix
+    Eigen::SparseMatrix<double> L_permuted = perm * m_mat_L * perm.transpose();
+
+    // Now perform analysis and factorization on the permuted matrix
+    m_laplacian_solver.analyzePattern(L_permuted);
+    m_laplacian_solver.factorize(L_permuted);
 
     m_laplacian_solver.compute(m_mat_L);
 

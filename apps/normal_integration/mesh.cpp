@@ -145,11 +145,11 @@ void Mesh::generate_poked_mesh(int nx, int ny, double width, double height, std:
     int offset = (nx + 1) * (ny + 1);
     for (int y=0; y<ny; y++){
         for (int x=0; x<nx; x++){
-            int upper_left = x + y * (nx + 1);
-            int upper_right = (x + 1) + y * (nx + 1);
-            int lower_left = x + (y + 1) * (nx + 1);
-            int lower_right = (x + 1) + (y + 1) * (nx + 1);
-            int center = offset + x + y * (nx);
+            unsigned int upper_left = x + y * (nx + 1);
+            unsigned int upper_right = (x + 1) + y * (nx + 1);
+            unsigned int lower_left = x + (y + 1) * (nx + 1);
+            unsigned int lower_right = (x + 1) + (y + 1) * (nx + 1);
+            unsigned int center = offset + x + y * (nx);
 
             triangles.push_back({upper_left, upper_right, center});
             triangles.push_back({lower_left, upper_left, center});
@@ -507,8 +507,8 @@ std::vector<double> Mesh::compute_laplacian(int i) {
             edge2 = sub_v(this->source_points[k2], this->source_points[i]);
             double cot_k2 = cot(edge1, edge2);
 
-            laplacian[j_index] += cot_k1;
-            laplacian[j_index] += cot_k2;
+            laplacian[j_index] += cot_k1 * 0.5;
+            laplacian[j_index] += cot_k2 * 0.5;
 
             //std::cout << "k1=" << k1 << ", k2=" << k2 << std::endl;
 

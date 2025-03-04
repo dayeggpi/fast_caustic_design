@@ -23,6 +23,7 @@
 
 //== INCLUDES =================================================================
 
+#include <cassert>
 
 #include <surface_mesh/types.h>
 #include <surface_mesh/properties.h>
