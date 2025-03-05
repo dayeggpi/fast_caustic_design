@@ -2,7 +2,12 @@
 
 ## Examples
 
+#### Ring
 ![bilinear barycenters](data/ring_sim.png)
+
+```
+./caustic_design -res 512 -focal_l 1.5 -in_src ../data/source.png -in_trg ../data/ring.png
+```
 
 ## Installation
 
