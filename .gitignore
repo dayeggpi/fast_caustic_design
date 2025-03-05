@@ -2,6 +2,9 @@ build
 data
 *.svg
 
+!data/ring_sim.png
+!data/ring.png
+
 # Prerequisites
 *.d
 

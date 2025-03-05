@@ -657,6 +657,22 @@ std::vector<std::vector<double>> fresnelMapping(
     return desiredNormals;
 }
 
+Eigen::MatrixXd rotate90ClockwiseAndFlipX(const Eigen::MatrixXd& mat) {
+    int rows = mat.rows();
+    int cols = mat.cols();
+    
+    Eigen::MatrixXd rotated(cols, rows);  // New matrix with swapped dimensions
+
+    // 90-degree clockwise rotation + X flip using a loop
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            rotated(j, rows - 1 - i) = mat(i, j);
+        }
+    }
+
+    return rotated;
+}
+
 int main(int argc, char** argv)
 {
   setlocale(LC_ALL,"C");
@@ -693,8 +709,13 @@ int main(int argc, char** argv)
     exit(EXIT_FAILURE);
   }
 
-  TransportMap tmap_src = runOptimalTransport(density_src, opts);
-  TransportMap tmap_trg = runOptimalTransport(density_trg, opts);
+  // Rotate matrices with an additional X flip
+  Eigen::MatrixXd rotated_src = rotate90ClockwiseAndFlipX(density_src);
+  Eigen::MatrixXd rotated_trg = rotate90ClockwiseAndFlipX(density_trg);
+
+  // Pass the properly rotated matrices
+  TransportMap tmap_src = runOptimalTransport(rotated_src, opts);
+  TransportMap tmap_trg = runOptimalTransport(rotated_trg, opts);
 
   //Mesh mesh(1.0, 1.0/2, opts.resolution, (int)(opts.resolution/2));
   Mesh mesh(1.0, 1.0, opts.resolution, opts.resolution);
@@ -803,5 +824,5 @@ int main(int argc, char** argv)
       //mesh.save_solid_obj_source(0.4, "../output.obj");
   }
 
-  mesh.save_solid_obj_source(0.2, "../output.obj");
+  mesh.save_solid_obj_source(0.4, "../output.obj");
 }

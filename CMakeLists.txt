@@ -39,7 +39,7 @@ if(USE_CIMAGE)
 endif()
 
 include_directories(extern/)
-include_directories(extern/eigen)
+include_directories(extern/eigen/)
 include_directories(otlib/)
 
 find_package(Cholmod)
@@ -129,15 +129,6 @@ set(OTAPPUTILS_HEADER_FILES
 )
 
 add_library(otapputils ${OTAPPUTILS_SRC_FILES})
-
-add_executable(otmap apps/otmap)
-target_link_libraries(otmap otapputils otlib ${ALLLIBS})
-
-add_executable(stippling apps/stippling.cpp)
-target_link_libraries(stippling otapputils otlib ${ALLLIBS})
-
-add_executable(barycenters apps/barycenters.cpp)
-target_link_libraries(barycenters otapputils otlib ${ALLLIBS})
 
 add_executable(caustic_design apps/caustic_design.cpp)
 target_link_libraries(caustic_design otapputils otlib ${ALLLIBS} ${CERES_LIBRARIES})
