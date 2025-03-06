@@ -12,18 +12,20 @@
 ## Installation
 
 This code uses [Eigen](https://eigen.tuxfamily.org), Surface_mesh, and CImg that are already included in the repo/archive.
-It is however highly recommended to install [SuiteSparse/Cholmod](http://faculty.cse.tamu.edu/davis/suitesparse.html) for higher performance, and libpng/libjpg for image IO.
+The only libraries you need to install are [Ceres Solver](http://ceres-solver.org/) for the normal integration and libpng/libjpg for image IO.
+
+It is however highly recommended to install [SuiteSparse/Cholmod](http://faculty.cse.tamu.edu/davis/suitesparse.html) for higher performance.
 
 All you need is to clone the repo, configure a build directory with cmake, and then build.
 For instance:
 
 ````
 $ git clone ...
-$ cd otmap
+$ cd fast_caustic_design
 $ mkdir build
 $ cd build
 $ cmake ..
-$ make -j 8
+$ make -j8
 ````
 
 ## License
