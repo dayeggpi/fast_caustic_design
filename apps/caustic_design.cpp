@@ -1,11 +1,19 @@
-// This file is part of otmap, an optimal transport solver.
-//
-// Copyright (C) 2017-2018 Gael Guennebaud <gael.guennebaud@inria.fr>
-// Copyright (C) 2017 Georges Nader
-//
-// This Source Code Form is subject to the terms of the Mozilla
-// Public License v. 2.0. If a copy of the MPL was not distributed
-// with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+/*
+ * Copyright (C) 2025 Dylan Missuwe
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 #include <iostream>
 #include "common/otsolver_options.h"
@@ -770,58 +778,9 @@ int main(int argc, char** argv)
           mesh.source_points[j][2] -= max_z;
       }
       
-
       std::vector<std::vector<double>> normals = fresnelMapping(mesh.source_points, trg_pts, r);
 
       normal_int.perform_normal_integration(mesh, normals);
-
-      //std::vector<std::vector<double>> vertex_normals = normal_int.calculate_vertex_normals(mesh);
-
-      //std::vector<double> incidentLight(3);
-      //incidentLight[0] = 0;
-      //incidentLight[1] = 0;
-      //incidentLight[2] = -1;
-
-      //std::vector<int32_t> plane_triangle = mesh.triangles[0];
-
-      //std::vector<double> plane_normal = calc_plane_normal(trg_pts[plane_triangle[0]], trg_pts[plane_triangle[0]], trg_pts[plane_triangle[0]]);
-
-      //std::vector<std::vector<double>> intersections(vertex_normals.size());
-
-      /*std::vector<double> pointLightPosition(3);
-      pointLightPosition[0] = 0.5;
-      pointLightPosition[1] = 0.5;
-      pointLightPosition[2] = 0.5;
-
-      for (int i = 0; i < vertex_normals.size(); i++)
-      {
-        vertex_normals[i][0] *= -1.0;
-        vertex_normals[i][1] *= -1.0;
-        vertex_normals[i][2] *= -1.0;
-
-        std::vector<double> incidentLight(3);
-        incidentLight[0] = mesh.source_points[i][0] - pointLightPosition[0];
-        incidentLight[1] = mesh.source_points[i][1] - pointLightPosition[1];
-        incidentLight[2] = mesh.source_points[i][2] - pointLightPosition[2];
-
-        std::vector<double> intersectionPoint(3);
-        std::vector<double> refracted = refract(vertex_normals[i], incidentLight, r, 1.0);
-
-        refracted[0] /= -(refracted[2] + mesh.source_points[i][2]);
-        refracted[1] /= -(refracted[2] + mesh.source_points[i][2]);
-        refracted[2] /= -(refracted[2] + mesh.source_points[i][2]);
-
-        refracted[0] += mesh.source_points[i][0];
-        refracted[1] += mesh.source_points[i][1];
-        refracted[2] += mesh.source_points[i][2];
-
-        intersections[i] = refracted;
-      }*/
-
-      //export_triangles_to_svg(intersections, mesh.triangles, 1, 1, opts.resolution, opts.resolution, "../triangles.svg", 0.5);
-      //export_grid_to_svg(intersections, 1, 1, opts.resolution, opts.resolution, "../intersections.svg", 0.5);
-
-      //mesh.save_solid_obj_source(0.4, "../output.obj");
   }
 
   mesh.save_solid_obj_source(0.4, "../output.obj");
