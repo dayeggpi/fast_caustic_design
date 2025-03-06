@@ -1,5 +1,5 @@
 build
-data
+data/*
 *.svg
 
 !data/ring_sim.png
