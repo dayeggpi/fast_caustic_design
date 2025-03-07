@@ -2,11 +2,18 @@
 
 ## Examples
 
-#### Ring
-![bilinear barycenters](data/ring_sim.png)
+#### Ring:
+![ring simulation](data/ring_sim.png)
 
 ```
-./caustic_design -res 512 -focal_l 1.5 -in_src ../data/source.png -in_trg ../data/ring.png
+./caustic_design -res 512 -focal_l 1.5 -thickness 0.2 -width 1 -in_src -in_src ../data/source.png -in_trg ../data/ring.png
+```
+
+#### Ring:
+![einstein simulation](data/einstein_sim.png)
+
+```
+./caustic_design -res 512 -focal_l 1.5 -thickness 0.3 -width 1 -in_src -in_src ../data/source.png -in_trg ../data/einstein.png
 ```
 
 ## Installation

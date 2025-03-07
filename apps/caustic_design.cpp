@@ -74,6 +74,8 @@ struct CLIopts : CLI_OTSolverOptions
   std::string out_prefix;
 
   double focal_l;
+  double thickness;
+  double mesh_width;
 
   void set_default()
   {
@@ -92,6 +94,8 @@ struct CLIopts : CLI_OTSolverOptions
     resolution = 100;
 
     focal_l = 1.0;
+    thickness = 0.2;
+    mesh_width = 1.0;
 
     CLI_OTSolverOptions::set_default();
   }
@@ -130,6 +134,12 @@ struct CLIopts : CLI_OTSolverOptions
 
     if(args.getCmdOption("-focal_l", value))
       focal_l = std::atof(value[0].c_str());
+
+    if(args.getCmdOption("-thickness", value))
+      thickness = std::atof(value[0].c_str());
+
+    if(args.getCmdOption("-mesh_width", value))
+      mesh_width = std::atof(value[0].c_str());
 
     return true;
   }
@@ -681,6 +691,20 @@ Eigen::MatrixXd rotate90ClockwiseAndFlipX(const Eigen::MatrixXd& mat) {
     return rotated;
 }
 
+Eigen::MatrixXd scaleAndTranslate(const Eigen::MatrixXd& mat, double newMin, double newMax) {
+    double oldMin = mat.minCoeff();  // Find the minimum value in the matrix
+    double oldMax = mat.maxCoeff();  // Find the maximum value in the matrix
+
+    if (oldMin == oldMax) {  // Avoid division by zero if all elements are the same
+        return Eigen::MatrixXd::Constant(mat.rows(), mat.cols(), newMin);
+    }
+
+    // Apply the scaling formula: newValue = newMin + (oldValue - oldMin) * (newMax - newMin) / (oldMax - oldMin)
+    Eigen::MatrixXd scaled = (mat.array() - oldMin) * (newMax - newMin) / (oldMax - oldMin) + newMin;
+
+    return scaled;
+}
+
 int main(int argc, char** argv)
 {
   setlocale(LC_ALL,"C");
@@ -721,6 +745,9 @@ int main(int argc, char** argv)
   Eigen::MatrixXd rotated_src = rotate90ClockwiseAndFlipX(density_src);
   Eigen::MatrixXd rotated_trg = rotate90ClockwiseAndFlipX(density_trg);
 
+  rotated_src = scaleAndTranslate(rotated_src, 0.0, 1.0);
+  rotated_trg = scaleAndTranslate(rotated_trg, 0.0, 1.0);
+
   // Pass the properly rotated matrices
   TransportMap tmap_src = runOptimalTransport(rotated_src, opts);
   TransportMap tmap_trg = runOptimalTransport(rotated_trg, opts);
@@ -735,7 +762,7 @@ int main(int argc, char** argv)
   //export_triangles_to_svg(mesh.source_points, mesh.triangles, 1, 1, opts.resolution, opts.resolution, "../triangles.svg", 0.5);
   //export_grid_to_svg(mesh.source_points, 1, 1, opts.resolution, opts.resolution, "../grid.svg", 0.5);
 
-  scaleAndTranslatePoints(mesh.source_points, 1.0, 1.0, 1.0 / opts.resolution);
+  scaleAndTranslatePoints(mesh.source_points, opts.mesh_width, opts.mesh_width, opts.mesh_width / opts.resolution);
   
   for (int i=0; i<mesh.source_points.size(); i++)
   {
@@ -783,5 +810,5 @@ int main(int argc, char** argv)
       normal_int.perform_normal_integration(mesh, normals);
   }
 
-  mesh.save_solid_obj_source(0.4, "../output.obj");
+  mesh.save_solid_obj_source(opts.thickness, "../output.obj");
 }

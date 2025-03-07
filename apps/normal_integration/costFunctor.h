@@ -7,7 +7,7 @@
 #define EINT_WEIGHT 0.01
 #define EBAR_WEIGHT 0.0
 #define EDIR_WEIGHT 5.0
-#define EREG_WEIGHT 0.003
+#define EREG_WEIGHT 0.5
 
 
 /******************************************************/
@@ -195,27 +195,10 @@ void evaluateReg(const T** const allVertices, uint nVertices,
                  std::vector<int> &neighbors, T* res) 
 {
     double laplacian_sum = 0.0;
-    T avg_edge_length = T(0);
 
     // Compute sum of Laplacian weights
     for (uint i = 0; i < laplacian.size(); i++) {
         laplacian_sum += laplacian[i];
-    }
-
-    // Compute average edge length (sum of neighbor distances / num edges)
-    for (uint i = 1; i < nVertices; i++) { // Start from 1 (neighbors only)
-        T edge_length = ceres::sqrt(
-            ceres::pow(allVertices[i][0] - allVertices[0][0], T(2)) +
-            ceres::pow(allVertices[i][1] - allVertices[0][1], T(2)) +
-            ceres::pow(allVertices[i][2] - allVertices[0][2], T(2))
-        );
-        avg_edge_length += edge_length;
-    }
-    avg_edge_length /= T(nVertices - 1); // Normalize by the number of neighbors
-
-    // Avoid division by zero
-    if (ceres::abs(avg_edge_length) < T(1e-6)) {
-        avg_edge_length = T(1.0);
     }
 
     // Clear the result
@@ -225,11 +208,10 @@ void evaluateReg(const T** const allVertices, uint nVertices,
 
     // Apply Laplacian smoothing with density compensation
     for (uint i = 0; i < nVertices; i++) {
-        T weight = T(laplacian[i - (i > 0)]) / avg_edge_length; // Scale by avg edge length
         if (i == 0) {
-            res[2] += T(-laplacian_sum) * allVertices[i][2] * T(EREG_WEIGHT) / avg_edge_length;
+            res[2] += T(-laplacian_sum) * allVertices[i][2] * T(EREG_WEIGHT);
         } else {
-            res[2] += weight * allVertices[i][2] * T(EREG_WEIGHT);
+            res[2] += T(laplacian[i - 1]) * allVertices[i][2] * T(EREG_WEIGHT);
         }
     }
 }
