@@ -7,7 +7,7 @@
 #define EINT_WEIGHT 0.01
 #define EBAR_WEIGHT 0.0
 #define EDIR_WEIGHT 5.0
-#define EREG_WEIGHT 0.5
+#define EREG_WEIGHT 1.0
 
 
 /******************************************************/

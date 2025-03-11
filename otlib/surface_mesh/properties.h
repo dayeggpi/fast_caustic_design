@@ -301,7 +301,9 @@ public:
     }
 
     // returns the current size of the property arrays
-    size_t size() const { return size_; }
+    size_t size() const { 
+        return size_;
+    }
 
     // returns the number of property arrays
     size_t n_properties() const { return parrays_.size(); }

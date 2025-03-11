@@ -966,13 +966,21 @@ public: //--------------------------------------------------- memory management
     //@{
 
     /// returns number of (deleted and valid) vertices in the mesh
-    unsigned int vertices_size() const { return (unsigned int) vprops_.size(); }
+    unsigned int vertices_size() const { 
+        return (unsigned int) vprops_.size(); 
+    }
     /// returns number of (deleted and valid)halfedge in the mesh
-    unsigned int halfedges_size() const { return (unsigned int) hprops_.size(); }
+    unsigned int halfedges_size() const { 
+        return (unsigned int) hprops_.size(); 
+    }
     /// returns number of (deleted and valid)edges in the mesh
-    unsigned int edges_size() const { return (unsigned int) eprops_.size(); }
+    unsigned int edges_size() const { 
+        return (unsigned int) eprops_.size();
+    }
     /// returns number of (deleted and valid)faces in the mesh
-    unsigned int faces_size() const { return (unsigned int) fprops_.size(); }
+    unsigned int faces_size() const { 
+        return (unsigned int) fprops_.size(); 
+    }
 
 
     /// returns number of vertices in the mesh

@@ -9,7 +9,7 @@
 ./caustic_design -res 512 -focal_l 1.5 -thickness 0.2 -width 1 -in_src -in_src ../data/source.png -in_trg ../data/ring.png
 ```
 
-#### Ring:
+#### Einstein:
 ![einstein simulation](data/einstein_sim.png)
 
 ```

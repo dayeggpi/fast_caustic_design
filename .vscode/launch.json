@@ -8,12 +8,12 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/home/dylan/Documents/otmap/build/caustic_design", // Path to your compiled executable
+            "program": "/home/dylan/otmap.git/fast_caustic_design/build/caustic_design", // Path to your compiled executable
             "args": [
                 "-in_src",
-                "/home/dylan/Documents/otmap/data/source.png",
+                "/home/dylan/otmap.git/fast_caustic_design/data/source.png",
                 "-in_trg",
-                "/home/dylan/Documents/otmap/data/source.png",
+                "/home/dylan/otmap.git/fast_caustic_design/data/face3.png",
                 "-res",
                 "100",
                 "-focal_l",

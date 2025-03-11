@@ -76,11 +76,11 @@ void
 GridBasedTransportSolver::
 init(int n)
 {
-  if(m_gridSize==n)
+  /*if(m_gridSize==n)
   {
     // we're already all set.
     return;
-  }
+  }*/
   if(m_verbose_level>=1)
     std::cout << "Init solver...\n";
   
