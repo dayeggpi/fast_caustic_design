@@ -16,6 +16,9 @@
 ./caustic_design -res 512 -focal_l 1.5 -thickness 0.3 -width 1 -in_src -in_src ../data/source.png -in_trg ../data/einstein.png
 ```
 
+## Limitation
+The code can currently only produce square lenses. Rectangular lenses are currently in the work.
+
 ## Installation
 
 This code uses [Eigen](https://eigen.tuxfamily.org), Surface_mesh, and CImg that are already included in the repo/archive.
