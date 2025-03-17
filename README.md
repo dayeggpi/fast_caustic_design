@@ -23,7 +23,7 @@ The limitation stems from the fact that the OTMap solver is designed to compute 
 
 Because deriving a heightmap for a lens relies on normal integration—which only utilizes the curl-free component of the mapping—the presence of any curl results in distortions in the caustic lens.
 
-A solution to this issue would be to solve the transport map T₍ᵤ→₁₎ on a custom domain (think rounded rectangle, circle, ellipse, etc). This requires a rewrite because the current OTMap solver relies on a square domain with quad faces. My plan is to use a triangular mesh as the domain and apply finite element analysis to compute the discrete differential operators.
+A solution to this issue would be to solve the transport map T₍ᵤ→₁₎ on a custom domain (think rounded rectangle, circle, ellipse, etc). This requires a rewrite because the current OTMap solver relies on a square domain with quad faces. My plan is to use a triangular mesh as the domain and apply finite element analysis to compute the discrete differential operators. Namely the laplacian and the gradient.
 
 ## Installation
 
