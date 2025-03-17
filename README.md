@@ -17,7 +17,13 @@
 ```
 
 ## Limitation
-The code can currently only produce square lenses. Rectangular lenses are currently in the work.
+Currently, the code produces only square lenses, though work is underway to support rectangular lenses. Circular lenses might be possible in the future; however, achieving this will require a complete rewrite of the OTMap solver.
+
+The limitation stems from the fact that the OTMap solver is designed to compute the transport map from an image to a uniform distribution, denoted as T₍ᵤ→₁₎. Specifically, a transport map from a source image u to a target image v is estimated by inverting v and then composing the non-inverted u with the inverted v (see Equation 10 in the paper). This approach inadvertently introduces a small curl component into the mapping.
+
+Because deriving a heightmap for a lens relies on normal integration—which only utilizes the curl-free component of the mapping—the presence of any curl results in distortions in the caustic lens.
+
+A solution to this issue would be to solve the transport map T₍ᵤ→₁₎ on a custom domain (think rounded rectangle, circle, ellipse, etc). This requires a rewrite because the current OTMap solver relies on a square domain with quad faces. My plan is to use a triangular mesh as the domain and apply finite element analysis to compute the discrete differential operators.
 
 ## Installation
 
