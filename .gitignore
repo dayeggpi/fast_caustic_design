@@ -2,6 +2,8 @@ build
 data/*
 *.svg
 
+!data/source.png
+
 !data/ring_sim.png
 !data/ring.png
 
