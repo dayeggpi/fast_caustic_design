@@ -16,10 +16,24 @@
 ./caustic_design -res 512 -focal_l 1.5 -thickness 0.3 -width 1 -in_src ../data/source.png -in_trg ../data/einstein.png
 ```
 
+## How does it work
+Creating a lens surface whose shadow matches a target image involves two main steps:
+
+### 1. Figuring out how to move the light
+First, we need to determine how light should travel from the lens surface to the target shadow. This is done using a technique called optimal transport (OT). OT is a challenging problem and an area of ongoing research. It gives us a map that tells each point on the lens surface where its light should land on the target image.
+
+Traditionally, this problem is solved using structures called power diagrams (also known as Laguerre-Voronoi diagrams). However, in our case, we use a newer, faster method.
+
+The usage of optimal transport is not just to reduce surface variations. It is actually quite important to have a truly optimal transport plan. According to Brenier's theorem, an optimal transport plan is the gradient of a potential. Without this fact we cannot approximate the inverse gradient (or normal integration) afterwards accurately.
+
+### 2. Shaping the surface to steer the light
+Once we have the transport map, the next step is to figure out the exact geometry of the lens surface. For each vertex on the surface, we use the OT map to set the x and y direction of the outgoing ray. The z-direction is chosen based on the focal length.
+
+These rays define how we want the surface to bend the light. Using inverse Snell’s law, we compute the target surface normals needed to steer the rays correctly. Finally, we use a solver (Ceres) to adjust the vertex positions on the lens surface so that the computed normals match the target ones. This is called normal integration and can be thought of as approximating the inverse gradient of the vertex normals.
 ## Limitation
 Currently, the code produces only square lenses, though work is underway to support rectangular lenses. Circular lenses might be possible in the future; however, achieving this will require a complete rewrite of the OTMap solver.
 
-The limitation stems from the fact that the OTMap solver is designed to compute the transport map from an image to a uniform distribution, denoted as T(u->1). Specifically, a transport map from a source image u to a target image v T(u->v) is estimated by means of inversion and composition (see Equation 10 in the paper). This approach is an estimation and not a true optimal transport map. This estimation inadvertently introduces a small curl component into the mapping.
+The limitation stems from the fact that the OTMap solver is designed to compute the transport map from an image to a uniform distribution, denoted as T(u->1). Specifically, a transport map from a source image u to a target image v T(u->v) is estimated by means of inversion and composition (see Equation 10 in the paper). This approach is an estimation and not a true optimal transport map. This estimation inadvertently introduces a small curl component into the mapping, so its no longer purely the gradient of a potential.
 
 Because deriving a heightmap for a lens relies on normal integration, which only utilizes the curl-free component of the mapping, the presence of any curl results in distortions in the caustic lens.
 
