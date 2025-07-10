@@ -15,11 +15,19 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(USE_CIMAGE true)
 
+# Force MSVC to use the static runtime (/MT or /MTd)
+if(MSVC)
+  foreach(flag_var CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
+                   CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE)
+    string(REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+  endforeach()
+endif()
+
 if(USE_CIMAGE)
     add_definitions(-D_cimg_)
     add_definitions(-Dcimg_display=0)
 
-    find_package(PNG)
+    find_package(PNG REQUIRED)
     if(PNG_FOUND)
         add_definitions(-Dcimg_use_png)
         set(ALLLIBS ${ALLLIBS} PNG::PNG)
@@ -54,7 +62,6 @@ else()
 endif()
 
 find_package(Ceres REQUIRED)
-include_directories(${CERES_INCLUDE_DIRS})
 
 ## FILES ##########################################################################
 set(SURFACE_MESH_SRC_FILES
@@ -130,5 +137,23 @@ set(OTAPPUTILS_HEADER_FILES
 
 add_library(otapputils ${OTAPPUTILS_SRC_FILES})
 
+
+
 add_executable(caustic_design apps/caustic_design.cpp)
-target_link_libraries(caustic_design otapputils otlib ${ALLLIBS} ${CERES_LIBRARIES})
+
+target_link_libraries(caustic_design PRIVATE PNG::PNG)
+
+target_link_libraries(otapputils
+    PRIVATE
+        Ceres::ceres
+        PNG::PNG
+        # JPEG::JPEG
+)
+
+target_link_libraries(caustic_design
+    PRIVATE
+        otapputils
+        otlib
+        ${ALLLIBS}
+        Ceres::ceres
+)
