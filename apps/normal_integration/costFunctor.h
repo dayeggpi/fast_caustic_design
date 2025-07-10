@@ -16,6 +16,8 @@
 
 using namespace std;
 
+typedef unsigned int uint;
+
 template<typename T> void cross(T* v1, T* v2, T* result);
 template<typename T> T angle(T* v1, T* v2);
 template<typename T> void normalize(T* v);
