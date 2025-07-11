@@ -709,6 +709,7 @@ int main(int argc, char** argv)
 {
   setlocale(LC_ALL,"C");
 
+  // parse comand line options
   InputParser input(argc, argv);
   
   MatrixXd density_src;
@@ -718,7 +719,7 @@ int main(int argc, char** argv)
   normal_integration normal_int;
 
   if(input.cmdOptionExists("-help") || input.cmdOptionExists("-h")){
-    output_usage();
+    output_usage(); // TODO: add correct usage
     return 0;
   }
 
@@ -729,12 +730,14 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
+  // load source image. TODO: assume uniform density if no image is loaded
   if(!load_input_density(opts.filename_src, density_src))
   {
     std::cout << "Failed to load input \"" << opts.filename_src << "\" -> abort.";
     exit(EXIT_FAILURE);
   }
-    
+
+  // load the target image
   if(!load_input_density(opts.filename_trg, density_trg))
   {
     std::cout << "Failed to load input \"" << opts.filename_trg << "\" -> abort.";
@@ -748,30 +751,37 @@ int main(int argc, char** argv)
   rotated_src = scaleAndTranslate(rotated_src, 0.0, 1.0);
   rotated_trg = scaleAndTranslate(rotated_trg, 0.0, 1.0);
 
-  // Pass the properly rotated matrices
-  TransportMap tmap_src = runOptimalTransport(rotated_src, opts);
-  TransportMap tmap_trg = runOptimalTransport(rotated_trg, opts);
+  // Pass the properly rotated images to the optimal transport solver
+  TransportMap tmap_src = runOptimalTransport(rotated_src, opts); // computes T(v->1)
+  TransportMap tmap_trg = runOptimalTransport(rotated_trg, opts); // computes T(u->1)
 
+  // create triangle mesh that we want to deform into the caustic surface later
   //Mesh mesh(1.0, 1.0/2, opts.resolution, (int)(opts.resolution/2));
   Mesh mesh(1.0, 1.0, opts.resolution, opts.resolution);
-  
+
+  // precompute triangle connectivity information
   mesh.build_vertex_to_triangles();
 
+  // initialize normal integrator
   normal_int.initialize_data(mesh);
   
   //export_triangles_to_svg(mesh.source_points, mesh.triangles, 1, 1, opts.resolution, opts.resolution, "../triangles.svg", 0.5);
   //export_grid_to_svg(mesh.source_points, 1, 1, opts.resolution, opts.resolution, "../grid.svg", 0.5);
 
   scaleAndTranslatePoints(mesh.source_points, opts.mesh_width, opts.mesh_width, opts.mesh_width / opts.resolution);
-  
+
+  // extract the x and y coordinates from the surface vertices
   for (int i=0; i<mesh.source_points.size(); i++)
   {
     Eigen::Vector2d point = {mesh.source_points[i][0], mesh.source_points[i][1]};
     vertex_positions.push_back(point);
   }
 
+  // apply optimal transport to the 2d vertex coordinates
+  // this moves the points along T(u->v)
   applyTransportMapping(tmap_src, tmap_trg, density_trg, vertex_positions);
-  
+
+  // turn the moved 2d cordinates back into 3d points
   std::vector<std::vector<double>> trg_pts;
   for (int i=0; i<mesh.source_points.size(); i++)
   {
@@ -779,36 +789,52 @@ int main(int argc, char** argv)
     trg_pts.push_back(point);
   }
 
+  // trg_pts now contains a point cloud where each 3d point is the target point of each light ray exiting the vertices of the mesh
+
   //export_grid_to_svg(trg_pts, 1, 0.5, opts.resolution, opts.resolution, "../grid.svg", 0.5);
 
   std::vector<std::vector<double>> desired_normals;
 
+  // here we apply some transformations to the target points
+
+  // scaling will make the resulting image larger or smaller than the lens itself
   //scalePoints(trg_pts, {8, 8, 0}, {0.5, 0.5, 0});
+
+  // rotation is for example if you want to project an image on an angled surface relative to the lens
   rotatePoints(trg_pts, {0, 0, 0});
+
+  // here we translate the points to the focal plane. you can change the x and y offsets aswel if you application disires it
   translatePoints(trg_pts, {0, 0, -opts.focal_l});
 
+  // refractive index
   double r = 1.55;
 
+  // precumpute laplacians for the regularization if the normal integration
   mesh.calculate_vertex_laplacians();
 
+  // we perform multiple outer iterations because when the caustic surface changes shape, so do the disired normals of the surface
   for (int i=0; i<10; i++)
   {
+      // compute the max z of the caustic surface
       double max_z = -10000;
-
       for (int j = 0; j < mesh.source_points.size(); j++) {
         if (max_z < mesh.source_points[j][2]) {
           max_z = mesh.source_points[j][2];
         }
       }
 
+      // snap the points so that the max z is 0 each outer iteration
       for (int j = 0; j < mesh.source_points.size(); j++) {
           mesh.source_points[j][2] -= max_z;
       }
-      
+
+      // given the final target points, we compute the vertex normal that steers light towards the target points
       std::vector<std::vector<double>> normals = fresnelMapping(mesh.source_points, trg_pts, r);
 
+      // solve the mesh surface to align with the calculated target normals
       normal_int.perform_normal_integration(mesh, normals);
   }
 
+  // save obj
   mesh.save_solid_obj_source(opts.thickness, "../output.obj");
 }
