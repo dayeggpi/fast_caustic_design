@@ -41,18 +41,23 @@ One solution to this issue would be to solve the transport map T(u->1) on a cust
 
 A second solution that may be more approachable is modifying the right hand side of equation 11 by replacing (h^2) * u(x) with the integral of u(x) / v(T(x)) over the dual cell. This should solve the full Monge-Ampère equation and yield a true L2 optimal transport map T(u->v).
 
-## Installation
+## Usage
+
+Download the latest build from [Releases](https://github.com/dylanmsu/fast_caustic_design/releases). 
+
+Run the command of one of the examples with the image locations properly filled out. After its complete the 3d model will be located in the directory above the directory of the exe.
+## Build from source
 
 This code uses [Eigen](https://eigen.tuxfamily.org), Surface_mesh, and CImg that are already included in the repo/archive.
 The only libraries you need to install are [Ceres Solver](http://ceres-solver.org/) for the normal integration and libpng/libjpg for image IO.
 
 It is however highly recommended to install [SuiteSparse/Cholmod](http://faculty.cse.tamu.edu/davis/suitesparse.html) for higher performance.
 
-All you need is to clone the repo, configure a build directory with cmake, and then build.
-For instance:
+All you then need to do is to clone the repo, configure a build directory with cmake, and then build.
+For instance on linux:
 
-````
-$ git clone ...
+````bash
+$ git clone --recursive git@github.com:dylanmsu/fast_caustic_design.git
 $ cd fast_caustic_design
 $ mkdir build
 $ cd build
