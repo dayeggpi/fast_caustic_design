@@ -16,6 +16,30 @@
 ./caustic_design -res 512 -focal_l 1.5 -thickness 0.3 -width 1 -in_src ../data/source.png -in_trg ../data/einstein.png
 ```
 
+## Usage
+
+Download the latest build from [Releases](https://github.com/dylanmsu/fast_caustic_design/releases). 
+
+Run the command of one of the examples with the image locations properly filled out. After its complete the 3d model will be located in the directory above the directory of the exe.
+## Build from source
+
+This code uses [Eigen](https://eigen.tuxfamily.org), Surface_mesh, and CImg that are already included in the repo/archive.
+The only libraries you need to install are [Ceres Solver](http://ceres-solver.org/) for the normal integration and libpng/libjpg for image IO.
+
+It is however highly recommended to install [SuiteSparse/Cholmod](http://faculty.cse.tamu.edu/davis/suitesparse.html) for higher performance.
+
+All you then need to do is to clone the repo, configure a build directory with cmake, and then build.
+For instance on linux:
+
+````bash
+$ git clone --recursive git@github.com:dylanmsu/fast_caustic_design.git
+$ cd fast_caustic_design
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make -j8
+````
+
 ## How does it work
 Creating a lens surface whose shadow matches a target image involves two main steps:
 
@@ -40,30 +64,6 @@ Because deriving a heightmap for a lens relies on normal integration, which only
 One solution to this issue would be to solve the transport map T(u->1) on a custom domain (think rounded rectangle, circle, ellipse, etc). This requires a rewrite because the current OTMap solver relies on a square domain with quad faces. You could use a triangular mesh as the domain and apply finite element analysis to compute the discrete differential operators. Namely the laplacian and the gradient. The laplacian uses a special stencil, and the gradient is calculated on the dual vertices, so this would not be trivial on a triangle mesh.
 
 A second solution that may be more approachable is modifying the right hand side of equation 11 by replacing (h^2) * u(x) with the integral of u(x) / v(T(x)) over the dual cell. This should solve the full Monge-Ampère equation and yield a true L2 optimal transport map T(u->v).
-
-## Usage
-
-Download the latest build from [Releases](https://github.com/dylanmsu/fast_caustic_design/releases). 
-
-Run the command of one of the examples with the image locations properly filled out. After its complete the 3d model will be located in the directory above the directory of the exe.
-## Build from source
-
-This code uses [Eigen](https://eigen.tuxfamily.org), Surface_mesh, and CImg that are already included in the repo/archive.
-The only libraries you need to install are [Ceres Solver](http://ceres-solver.org/) for the normal integration and libpng/libjpg for image IO.
-
-It is however highly recommended to install [SuiteSparse/Cholmod](http://faculty.cse.tamu.edu/davis/suitesparse.html) for higher performance.
-
-All you then need to do is to clone the repo, configure a build directory with cmake, and then build.
-For instance on linux:
-
-````bash
-$ git clone --recursive git@github.com:dylanmsu/fast_caustic_design.git
-$ cd fast_caustic_design
-$ mkdir build
-$ cd build
-$ cmake ..
-$ make -j8
-````
 
 ## License
 
