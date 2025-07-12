@@ -33,13 +33,13 @@ void BVH2D::build(surface_mesh::Surface_mesh *mesh, int targetCellSize, int maxD
     m_points = mesh->get_vertex_property<Point>("v:point").vector();
 
     // Number of vertices in the mesh
-    int n_vtx = m_points.size();
+    size_t n_vtx = m_points.size();
 
     m_centroids.clear();
     faces_.clear();
 
     nodes_.resize(1);
-    nodes_.reserve( std::min<int>(2<<maxDepth, std::max<int>(1,std::log(mesh_->n_faces()/targetCellSize)) ) );
+    nodes_.reserve( std::min<int>(2<<maxDepth, std::max<int>(1,static_cast<int>(std::floor(std::log(mesh_->n_faces()/targetCellSize))) )) );
     m_centroids.resize(mesh_->n_faces());
     faces_.resize(mesh_->n_faces());
 
@@ -97,8 +97,8 @@ void BVH2D::intersectNode(int nodeId, const Eigen::Vector2d &target, std::vector
 
   if(node.is_leaf)
   {
-    int end = node.first_child_id+node.nb_faces;
-    for(int i=node.first_child_id; i<end; ++i)
+    size_t end = node.first_child_id+node.nb_faces;
+    for(size_t i=node.first_child_id; i<end; ++i)
     {
       Vector2d pts[4];
       int j = 0;
@@ -146,8 +146,8 @@ void BVH2D::intersectNode(int nodeId, const Eigen::Vector2d &target, std::vector
   }
   else
   {
-    int child_id1 = node.first_child_id;
-    int child_id2 = node.first_child_id+1;
+    int child_id1 = static_cast<int>(node.first_child_id);
+    int child_id2 = static_cast<int>(node.first_child_id+1);
     if(nodes_[child_id1].box.contains(target)) {
       intersectNode(child_id1, target, hits, stop_at_first);
       if(stop_at_first && hits.size()>0)
@@ -164,7 +164,7 @@ void BVH2D::intersectNode(int nodeId, const Eigen::Vector2d &target, std::vector
 /** Sorts the faces with respect to their centroid along the dimension \a dim and spliting value \a split_value.
   * \returns the middle index
   */
-int BVH2D::split(int start, int end, int dim, float split_value)
+int BVH2D::split(int start, int end, int dim, double split_value)
 {
   int l(start), r(end-1);
   while(l<r)
@@ -181,7 +181,7 @@ int BVH2D::split(int start, int end, int dim, float split_value)
   return m_centroids[l][dim]<=split_value ? std::min(end,l+1) : l;
 }
 
-void BVH2D::buildNode(int nodeId, int start, int end, int level, int targetCellSize, int maxDepth)
+void BVH2D::buildNode(size_t nodeId, int start, int end, int level, int targetCellSize, int maxDepth)
 {
   Node& node = nodes_[nodeId];
 
@@ -217,7 +217,7 @@ void BVH2D::buildNode(int nodeId, int start, int end, int level, int targetCellS
   int dim;
   diag.maxCoeff(&dim);
   // Split at the middle
-  float split_value = 0.5 * (node.box.max()[dim] + node.box.min()[dim]);
+  double split_value = 0.5 * (node.box.max()[dim] + node.box.min()[dim]);
 
   // Sort the faces according to the split plane
   int mid_id = split(start, end, dim, split_value);
@@ -233,7 +233,9 @@ void BVH2D::buildNode(int nodeId, int start, int end, int level, int targetCellS
   }
 
   // create the children
-  int child_id = node.first_child_id = nodes_.size();
+  size_t child_id = nodes_.size();
+  node.first_child_id = nodes_.size();
+
   nodes_.resize(nodes_.size()+2);
   // node is not a valid reference anymore !
 

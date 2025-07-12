@@ -31,8 +31,8 @@ class BVH2D
     struct Node {
       Eigen::AlignedBox2d box;
       union {
-        int first_child_id; // for inner nodes
-        int first_face_id;  // for leaves
+        size_t first_child_id; // for inner nodes
+        size_t first_face_id;  // for leaves
       };
       unsigned short nb_faces;
       short is_leaf;
@@ -61,9 +61,9 @@ class BVH2D
 
     void intersectNode(int nodeId, const Eigen::Vector2d &target, std::vector<Hit> &hits, bool stop_at_first) const;
 
-    int split(int start, int end, int dim, float split_value);
+    int split(int start, int end, int dim, double split_value);
 
-    void buildNode(int nodeId, int start, int end, int level, int targetCellSize, int maxDepth);
+    void buildNode(size_t nodeId, int start, int end, int level, int targetCellSize, int maxDepth);
 
     surface_mesh::Surface_mesh* mesh_;
     std::vector<Eigen::Vector2d> m_points;

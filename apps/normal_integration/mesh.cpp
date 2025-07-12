@@ -38,30 +38,30 @@ Mesh::~Mesh()
 {
 }
 
-void find_perimeter_vertices(int nx, int ny, std::vector<int> &perimeter_vertices) {
+void find_perimeter_vertices(int nx, int ny, std::vector<size_t> &perimeter_vertices) {
     // Top row
-    for (int i = 0; i < nx; ++i) {
+    for (size_t i = 0; i < nx; ++i) {
         perimeter_vertices.push_back(i);
     }
 
     // Right column
-    for (int i = nx - 1; i < nx * ny; i += nx) {
+    for (size_t i = nx - 1; i < nx * ny; i += nx) {
         perimeter_vertices.push_back(i);
     }
 
     // Bottom row
-    for (int i = nx * (ny - 1) + nx - 1; i > nx * (ny - 1) - 1; --i) {
+    for (size_t i = nx * (ny - 1) + nx - 1; i > nx * (ny - 1) - 1; --i) {
         perimeter_vertices.push_back(i);
     }
 
     // Left column
-    for (int i = nx * (ny - 1) - nx; i > nx - 1; i -= nx) {
+    for (size_t i = nx * (ny - 1) - nx; i > nx - 1; i -= nx) {
         perimeter_vertices.push_back(i);
     }
 }
 
 void save_solid_obj(std::vector<std::vector<double>> &front_points, std::vector<std::vector<double>> &back_points, std::vector<std::vector<unsigned int>> &triangles, double thickness, double width, double height, int res_x, int res_y, const std::string& filename) {
-    int num_points = front_points.size();
+    size_t num_points = front_points.size();
 
     std::ofstream file(filename);
     if (!file.is_open()) {
@@ -105,14 +105,14 @@ void save_solid_obj(std::vector<std::vector<double>> &front_points, std::vector<
     }
 
     // Generate triangles connecting top and bottom mesh
-    std::vector<int> perimeter_verts;
+    std::vector<size_t> perimeter_verts;
     find_perimeter_vertices(res_x, res_y, perimeter_verts);
 
     for (size_t i = 0; i < perimeter_verts.size(); ++i) {
-        int top_idx = perimeter_verts[i];
-        int bottom_idx = perimeter_verts[i] + num_points;
-        int next_top_idx = perimeter_verts[(i + 1) % perimeter_verts.size()];
-        int next_bottom_idx = perimeter_verts[(i + 1) % perimeter_verts.size()] + num_points;
+        size_t top_idx = perimeter_verts[i];
+        size_t bottom_idx = perimeter_verts[i] + num_points;
+        size_t next_top_idx = perimeter_verts[(i + 1) % perimeter_verts.size()];
+        size_t next_bottom_idx = perimeter_verts[(i + 1) % perimeter_verts.size()] + num_points;
 
 
         file << "f " << top_idx + 1 << " " << bottom_idx + 1 << " " << next_bottom_idx + 1 << "\n";
@@ -303,7 +303,7 @@ double calculate_polygon_area_vec(const std::vector<std::vector<double>> input_p
         return 0.0;
     }
 
-	int n = input_polygon.size();
+	size_t n = input_polygon.size();
     double area = 0.0;
 
     for (int i = 0; i < n; i++) {

@@ -166,7 +166,7 @@ double BFO12_example(const Eigen::Vector2d& p)
 
 VectorXd BF012_error(const std::vector<Eigen::Vector2d>& points, const std::vector<Eigen::Vector2d>& map)
 {
-  int n = points.size();
+  size_t n = points.size();
 
   VectorXd err;
   err.resize(n); err.setZero();
@@ -275,8 +275,8 @@ double func(FuncName::Enum fn, const Eigen::Vector2d& p)
   */
 void eval_func_to_grid(Ref<MatrixXd> density, int fn)
 {
-  int resX = density.rows();
-  int resY = density.cols();
+  int resX = static_cast<int>(density.rows());
+  int resY = static_cast<int>(density.cols());
   density.setZero();
 
   double dx = 1./double(resX);

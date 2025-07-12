@@ -48,8 +48,8 @@ void load_image(const char* filename, MatrixXd &data)
 
 void save_image(const char* filename, Ref<const MatrixXd> data)
 {
-  int h = data.cols();
-  int w = data.rows();
+  int h = static_cast<int>(data.cols());
+  int w = static_cast<int>(data.rows());
 
   cimg_library::CImg<double> temp(w, h, 1, 3, 0);
 
@@ -59,9 +59,9 @@ void save_image(const char* filename, Ref<const MatrixXd> data)
         double v = data(i, j)*255.;
         v = std::max(0., std::min(255., v)); //truncate between 0 and 255
 
-        temp(i, j, 0., 0) = v;
-        temp(i, j, 0., 1) = v;
-        temp(i, j, 0., 2) = v;
+        temp(i, j, 0, 0) = v;
+        temp(i, j, 0, 1) = v;
+        temp(i, j, 0, 2) = v;
       }
     }
 
@@ -79,7 +79,7 @@ void save_matrix_as_image(const char* filename, Ref<const MatrixXd> mat, double 
   save_image(filename, tmp);
 }
 
-void
+/*void
 gaussian_blur(Ref<const MatrixXd> in, Ref<MatrixXd> out, int kernel_size)
 {
   // mirror border conditions
@@ -111,25 +111,25 @@ gaussian_blur(Ref<const MatrixXd> in, Ref<MatrixXd> out, int kernel_size)
 
   MatrixXd temp = out;
   // vertical convolution
-  for(int j=0; j<in.cols(); ++j){
-    for(int i=0; i<in.rows(); ++i){
+  for(int j=0; j<static_cast<int>(in.cols()); ++j){
+    for(int i=0; i<static_cast<int>(in.rows()); ++i){
       double sum = 0;
       for(int k=0; k<ker.size(); ++k)
-        sum += in(mirror(i-ker.size()/2 + k,in.rows()), j) * ker(k);
+        sum += in(mirror(i-ker.size()/2 + k,static_cast<int>(in.rows())), j) * ker(k);
       temp(i, j) = sum;
     }
   }
 
   // horizontal convolution
-  for(int i=0; i<in.rows(); ++i){
-    for(int j=0; j<in.cols(); ++j){
+  for(int i=0; i<static_cast<int>(in.rows()); ++i){
+    for(int j=0; j<static_cast<int>(in.cols()); ++j){
       double sum = 0;
       for(int k=0; k<ker.size(); ++k)
-        sum += temp(i, mirror(j - ker.size()/2 + k, in.cols())) * ker(k);
+        sum += temp(i, mirror(j - ker.size()/2 + k, static_cast<int>(in.cols()))) * ker(k);
       out(i,j) = sum;
     }
   }
-}
+}*/
 
 void make_unit(std::vector<Vector3d> &pts)
 {
@@ -148,8 +148,8 @@ void make_unit(std::vector<Vector3d> &pts)
 void
 generate_blue_noise_tile(int n, std::vector<Eigen::Vector2d> &pts, const std::vector<Eigen::Vector2d> &tile)
 {
-  int nb = tile.size();
-  int N = std::sqrt(nb);
+  size_t nb = tile.size();
+  int N = static_cast<int>(std::floor(std::sqrt(nb)));
 
   int nb_tiles = (n+N-1)/N;
   double scale = double(N)/double(n);

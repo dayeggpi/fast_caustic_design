@@ -227,7 +227,7 @@ apply_forward_map(const otmap::TransportMap& tmap, std::vector<Vector2d> &points
 double
 transport_cost(const Surface_mesh &src_mesh, const Surface_mesh &dst_mesh, const VectorXd &density_per_face, VectorXd *cost_per_face)
 {
-  int ncells = density_per_face.size();
+  int ncells = static_cast<int>(density_per_face.size());
   int nfaces = src_mesh.faces_size();
 
   if(cost_per_face!=0 && cost_per_face->size() != ncells){

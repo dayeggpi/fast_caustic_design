@@ -39,39 +39,32 @@ void output_usage()
   std::cout << std::endl;
 
   std::cout << "input options : " << std::endl;
-  std::cout << " * -in <filename> -> input image" << std::endl;
+  std::cout << " * -in_trg <filename> -> input image" << std::endl;
+  std::cout << " * -in_src <filename> -> optional source image" << std::endl;
+
+  std::cout << " * -output <filename> -> output path for the 3d model" << std::endl;
+  std::cout << " * -res <value> -> mesh resolution for the caustic surface" << std::endl;
+  std::cout << " * -focal_l <value> -> focal length of the caustic lens" << std::endl;
+  std::cout << " * -thickness <value> -> thickness of the caustic lens" << std::endl;
+  std::cout << " * -mesh_width <value> -> physical width and height of the lens" << std::endl;
 
   std::cout << std::endl;
 
   CLI_OTSolverOptions::print_help();
-
-  std::cout << std::endl;
-
-  std::cout << " * -ores <res1> <res2> <res3> ... -> ouput point resolutions" << std::endl;
-  std::cout << " * -ptscale <value>               -> scaling factor to apply to SVG point sizes (default 1)" << std::endl;
-  std::cout << " * -pattern <value>               -> pattern = poisson or a .dat file, default is tiling from uniform_pattern_sig2012.dat" << std::endl;
-  std::cout << " * -export_maps                   -> write maps as .off files" << std::endl;
-
-  std::cout << std::endl;
-
-  std::cout << "output options :" << std::endl;
-  std::cout << " * -out <prefix>" << std::endl;
 }
 
 struct CLIopts : CLI_OTSolverOptions
 {
   std::string filename_src;
+  bool uniform_src;
+
   std::string filename_trg;
 
-  VectorXi ores;
-  double pt_scale;
-  std::string pattern;
+  std::string output_path;
+
   bool inv_mode;
-  bool export_maps;
 
   uint resolution;
-
-  std::string out_prefix;
 
   double focal_l;
   double thickness;
@@ -80,16 +73,10 @@ struct CLIopts : CLI_OTSolverOptions
   void set_default()
   {
     filename_src = "";
+    uniform_src = false;
     filename_trg = "";
 
-    ores.resize(1); ores.setZero();
-    ores(0) = 1;
-
-    out_prefix = "";
-
-    pt_scale = 1;
-    export_maps = 0;
-    pattern = "";
+    output_path = "./";
 
     resolution = 100;
 
@@ -111,26 +98,18 @@ struct CLIopts : CLI_OTSolverOptions
     if(args.getCmdOption("-in_src", value))
       filename_src = value[0];
     else
-      return false;
+      uniform_src = true;
 
     if(args.getCmdOption("-in_trg", value))
       filename_trg = value[0];
     else
       return false;
 
-    /*if(args.getCmdOption("-points", value))
-      pattern = value[0];
-    else
-      return false;*/
+    if(args.cmdOptionExists("-output"))
+      output_path = value[0];
 
     if(args.getCmdOption("-res", value))
-      resolution = std::atof(value[0].c_str());
-
-    if(args.getCmdOption("-ptscale", value))
-      pt_scale = std::atof(value[0].c_str());
-    
-    if(args.cmdOptionExists("-export_maps"))
-      export_maps = true;
+      resolution = std::atoi(value[0].c_str());
 
     if(args.getCmdOption("-focal_l", value))
       focal_l = std::atof(value[0].c_str());
@@ -407,7 +386,7 @@ TransportMap runOptimalTransport(MatrixXd &density, CLIopts &opts) {
   BenchTimer t_solver_init, t_solver_compute, t_generate_uniform;
 
   t_solver_init.start();
-  otsolver.init(density.rows());
+  otsolver.init(static_cast<int>(density.rows()));
   t_solver_init.stop();
 
   std::cout << "init\n";
@@ -676,8 +655,8 @@ std::vector<std::vector<double>> fresnelMapping(
 }
 
 Eigen::MatrixXd rotate90ClockwiseAndFlipX(const Eigen::MatrixXd& mat) {
-    int rows = mat.rows();
-    int cols = mat.cols();
+    int rows = static_cast<int>(mat.rows());
+    int cols = static_cast<int>(mat.cols());
     
     Eigen::MatrixXd rotated(cols, rows);  // New matrix with swapped dimensions
 
@@ -730,11 +709,13 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  // load source image. TODO: assume uniform density if no image is loaded
-  if(!load_input_density(opts.filename_src, density_src))
-  {
-    std::cout << "Failed to load input \"" << opts.filename_src << "\" -> abort.";
-    exit(EXIT_FAILURE);
+  if (!opts.uniform_src) {
+    // load source image. TODO: assume uniform density if no image is loaded
+    if(!load_input_density(opts.filename_src, density_src))
+    {
+      std::cout << "Failed to load input \"" << opts.filename_src << "\" -> abort.";
+      exit(EXIT_FAILURE);
+    }
   }
 
   // load the target image
@@ -743,17 +724,6 @@ int main(int argc, char** argv)
     std::cout << "Failed to load input \"" << opts.filename_trg << "\" -> abort.";
     exit(EXIT_FAILURE);
   }
-
-  // Rotate matrices with an additional X flip
-  Eigen::MatrixXd rotated_src = rotate90ClockwiseAndFlipX(density_src);
-  Eigen::MatrixXd rotated_trg = rotate90ClockwiseAndFlipX(density_trg);
-
-  rotated_src = scaleAndTranslate(rotated_src, 0.0, 1.0);
-  rotated_trg = scaleAndTranslate(rotated_trg, 0.0, 1.0);
-
-  // Pass the properly rotated images to the optimal transport solver
-  TransportMap tmap_src = runOptimalTransport(rotated_src, opts); // computes T(v->1)
-  TransportMap tmap_trg = runOptimalTransport(rotated_trg, opts); // computes T(u->1)
 
   // create triangle mesh that we want to deform into the caustic surface later
   //Mesh mesh(1.0, 1.0/2, opts.resolution, (int)(opts.resolution/2));
@@ -768,6 +738,7 @@ int main(int argc, char** argv)
   //export_triangles_to_svg(mesh.source_points, mesh.triangles, 1, 1, opts.resolution, opts.resolution, "../triangles.svg", 0.5);
   //export_grid_to_svg(mesh.source_points, 1, 1, opts.resolution, opts.resolution, "../grid.svg", 0.5);
 
+  // scale the mesh such that there is a small margin around the boundary
   scaleAndTranslatePoints(mesh.source_points, opts.mesh_width, opts.mesh_width, opts.mesh_width / opts.resolution);
 
   // extract the x and y coordinates from the surface vertices
@@ -777,9 +748,34 @@ int main(int argc, char** argv)
     vertex_positions.push_back(point);
   }
 
-  // apply optimal transport to the 2d vertex coordinates
-  // this moves the points along T(u->v)
-  applyTransportMapping(tmap_src, tmap_trg, density_trg, vertex_positions);
+  if (!opts.uniform_src) {
+    // Rotate matrices with an additional X flip
+    Eigen::MatrixXd rotated_src = rotate90ClockwiseAndFlipX(density_src);
+    Eigen::MatrixXd rotated_trg = rotate90ClockwiseAndFlipX(density_trg);
+
+    // normalize the images so the brightness is between 0 and 1
+    rotated_src = scaleAndTranslate(rotated_src, 0.0, 1.0);
+    rotated_trg = scaleAndTranslate(rotated_trg, 0.0, 1.0);
+
+    // Pass the properly rotated images to the optimal transport solver
+    TransportMap tmap_src = runOptimalTransport(rotated_src, opts); // computes T(v->1)
+    TransportMap tmap_trg = runOptimalTransport(rotated_trg, opts); // computes T(u->1)    
+    
+    // this moves the points along T(v->u)
+    applyTransportMapping(tmap_src, tmap_trg, density_trg, vertex_positions);
+  } else {
+    // Rotate matrices with an additional X flip
+    Eigen::MatrixXd rotated_trg = rotate90ClockwiseAndFlipX(density_trg);
+
+    // normalize the images so the brightness is between 0 and 1
+    rotated_trg = scaleAndTranslate(rotated_trg, 0.0, 1.0);
+    
+    // Pass the properly rotated images to the optimal transport solver
+    TransportMap tmap_trg = runOptimalTransport(rotated_trg, opts); // computes T(u->1) 
+
+    // this moves the points along T(1->u)
+    apply_inverse_map(tmap_trg, vertex_positions, 3);
+  }
 
   // turn the moved 2d cordinates back into 3d points
   std::vector<std::vector<double>> trg_pts;
@@ -836,5 +832,6 @@ int main(int argc, char** argv)
   }
 
   // save obj
-  mesh.save_solid_obj_source(opts.thickness, "../output.obj");
+  mesh.save_solid_obj_source(opts.thickness, opts.output_path + "output.obj");
+  std::cout << "\033[1;32m" << "Exported 3d model as " << (opts.output_path + "output.obj") << " relative to this executable." << "\033[0m" << std::endl;
 }

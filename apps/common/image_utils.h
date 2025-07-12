@@ -30,7 +30,7 @@ void save_matrix_as_image(const char* filename, Eigen::Ref<const Eigen::MatrixXd
 
 // Image operations --------
 
-void gaussian_blur(Eigen::Ref<const Eigen::MatrixXd> in, Eigen::Ref<Eigen::MatrixXd> out, int kernel_size=5);
+//void gaussian_blur(Eigen::Ref<const Eigen::MatrixXd> in, Eigen::Ref<Eigen::MatrixXd> out, int kernel_size=5);
 
 // sampling ----------------
 

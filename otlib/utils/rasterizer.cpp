@@ -60,7 +60,7 @@ public:
 
 struct Vert {
   Array2d p;
-  float value;
+  double value;
 
   Vert() : p(0,0), value(0) {}
 
@@ -124,7 +124,7 @@ void rasterize_face(int rows, int cols, std::array<VertexType,3> verts, FragShad
       for(int i=0;i<3;i++)
       {
         VertexType vt = verts[0];
-        vt *= bary[i];
+        vt *= static_cast<float>(bary[i]);
         v += vt;
       }
       //call the fragment processor
@@ -175,7 +175,7 @@ void rasterize_face(int rows, int cols, std::array<VertexType,4> verts, FragShad
       for(int i=0;i<4;i++)
       {
         VertexType vt = verts[0];
-        vt *= bary[i];
+        vt *= static_cast<float>(bary[i]);
         v += vt;
       }
       //call the fragment processor
@@ -190,10 +190,10 @@ void rasterize_image(const Surface_mesh &mesh, const VectorXd &density_per_Face,
   // create indexed-face-set
   auto& vpositions = mesh.get_vertex_property<Point>("v:point").vector();
 
-  float scale = 1./density_per_Face.size();
+  double scale = 1./density_per_Face.size();
 
-  int rows = img.rows();
-  int cols = img.cols();
+  int rows = static_cast<int>(img.rows());
+  int cols = static_cast<int>(img.cols());
   img.setZero();
 
   if(opt==RIO_PerFaceDensity)
@@ -239,7 +239,7 @@ void rasterize_image(const Surface_mesh &mesh, const VectorXd &density_per_Face,
   {
     // first compute per-vertex densities
     std::vector<Vert> vertices(mesh.n_vertices());
-    for(int i=0; i<mesh.n_vertices(); ++i)
+    for(unsigned int i=0; i<mesh.n_vertices(); ++i)
     {
       vertices[i].p = vpositions[i].head<2>();
       vertices[i].value = 0;
@@ -264,11 +264,11 @@ void rasterize_image(const Surface_mesh &mesh, const VectorXd &density_per_Face,
                                    ));
       for(auto v:mesh.vertices(f))
       {
-        vertices[v.idx()].value += 1./area;
-        divisors[v.idx()] += 1.;
+        vertices[v.idx()].value += 1.0f/area;
+        divisors[v.idx()] += 1.0f;
       }
     }
-    for(int i=0; i<mesh.n_vertices(); ++i)
+    for(unsigned int i=0; i<mesh.n_vertices(); ++i)
       vertices[i].value = scale * vertices[i].value / divisors[i];
 
     // then rasterize each face

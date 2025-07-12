@@ -382,10 +382,10 @@ compute_vertex_gradients(ConstRefVector psi, MatrixX2d& vtx_grads) const
   double w = double(m_gridSize);
   Packet pw05 = pset1<Packet>(0.5*w);
   // inner cells:
-  for(Index i=1; i<m_gridSize; ++i){
-    int fid0 = make_face_index(i-1,0);
-    int fid1 = make_face_index(i,0);
-    int vid = make_vtx_index(i,0);
+  for(int i=1; i<m_gridSize; ++i){
+    Eigen::Index fid0 = make_face_index(i-1,0);
+    Eigen::Index fid1 = make_face_index(i,0);
+    Eigen::Index vid = make_vtx_index(i,0);
 
     for(Index j=1; j<simd_size; j+=PacketSize){
       Packet p00 = psi.packet<Unaligned>(fid0+j-1);
@@ -519,7 +519,7 @@ compute_1D_problem_parameters(Ref<const VectorXd> psi, Ref<const VectorXd> dir, 
       b.writePacket<Unaligned>(id, pmul(p05, psub(padd(psub(pmul(dda_x, diag0b_y), pmul(dda_y, diag0b_x)), pmul(diag0a_x, ddb_y)), pmul(diag0a_y, ddb_x)) ));
     }
 
-    for(int j=simd_size; j<m_gridSize; ++j){
+    for(int j=static_cast<int>(simd_size); j<m_gridSize; ++j){
       int id = j+i*m_gridSize;
       int v00 = vid0 + j;
       int v10 = vid1 + j;

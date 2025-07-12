@@ -13,37 +13,45 @@
 #include "utils/stochastic_rasterizer.h"
 #include "utils/eigen_addons.h"
 
+#include <sstream>
+
 using namespace Eigen;
 using namespace surface_mesh;
 using namespace otmap;
 
 bool load_input_density(const std::string& filename, MatrixXd& density)
 {
-  if(filename[0]==':')
-  {
-    // procedural density function
-    int func_id;
-    int resolution;
-    if(std::sscanf(filename.c_str(), ":%d:%d:", &func_id, &resolution)!=2)
+    if (filename[0] == ':')
     {
-      std::cerr << "Error parsing procedural input \"" << filename << "\", expected format is \":id:resolution:\"";
-      return false;
+        int func_id;
+        int resolution;
+
+        // Use stringstream for safe parsing
+        std::stringstream ss(filename.substr(1));
+        char colon1, colon2;
+
+        if (!(ss >> func_id >> colon1 >> resolution >> colon2) || colon1 != ':' || colon2 != ':')
+        {
+            std::cerr << "Error parsing procedural input \"" << filename
+                      << "\", expected format is \":id:resolution:\"";
+            return false;
+        }
+
+        density.resize(resolution, resolution);
+        eval_func_to_grid(density, func_id);
     }
-    density.resize(resolution,resolution);
-    eval_func_to_grid(density, func_id);
-  }
-  else
-  {
-    load_image(filename.c_str(), density);
-    if(density.size()==0)
-      return false;
-    if(density.rows()!=density.cols())
+    else
     {
-      std::cout << "Error: input image \"" << filename << "\" is not square.";
-      return false;
+        load_image(filename.c_str(), density);
+        if (density.size() == 0)
+            return false;
+        if (density.rows() != density.cols())
+        {
+            std::cout << "Error: input image \"" << filename << "\" is not square.";
+            return false;
+        }
     }
-  }
-  return true;
+    return true;
 }
 
 void generate_transport_maps(const std::vector<std::string>& inputs, std::vector<TransportMap>& tmaps, const CLI_OTSolverOptions& opts,
@@ -62,7 +70,7 @@ void generate_transport_maps(const std::vector<std::string>& inputs, std::vector
       std::cout << "Failed to load input #" << k << " \"" << inputs[k] << "\" -> abort.";
       exit(EXIT_FAILURE);
     }
-    otsolver.init(density.rows());
+    otsolver.init(static_cast<int>(density.rows()));
     filter(density);
     tmaps.push_back( otsolver.solve(vec(density), opts.solver_opt) );
   }

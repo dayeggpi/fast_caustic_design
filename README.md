@@ -6,14 +6,14 @@
 ![ring simulation](data/ring_sim.png)
 
 ```
-./caustic_design -res 512 -focal_l 1.5 -thickness 0.2 -width 1 -in_src ../data/source.png -in_trg ../data/ring.png
+./caustic_design -res 512 -focal_l 1.5 -thickness 0.2 -width 1 -in_trg ../data/ring.png
 ```
 
 #### Einstein:
 ![einstein simulation](data/einstein_sim.png)
 
 ```
-./caustic_design -res 512 -focal_l 1.5 -thickness 0.3 -width 1 -in_src ../data/source.png -in_trg ../data/einstein.png
+./caustic_design -res 512 -focal_l 1.5 -thickness 0.3 -width 1 -in_trg ../data/einstein.png
 ```
 
 ## Usage
@@ -28,16 +28,38 @@ The only libraries you need to install are [Ceres Solver](http://ceres-solver.or
 
 It is however highly recommended to install [SuiteSparse/Cholmod](http://faculty.cse.tamu.edu/davis/suitesparse.html) for higher performance.
 
+### Install dependancies on windows:
+Install vcpkg:
+```bash
+$ cd C:\
+$ git clone https://github.com/microsoft/vcpkg.git
+$ cd vcpkg
+$ .\bootstrap-vcpkg.bat
+```
+
+Install Ceres solver and its dependancies:
+```bash
+$ ./vcpkg.exe install ceres[core] --triplet x64-windows-static
+```
+
+Install libpng
+ and its dependancies:
+```bash
+$ vcpkg install libpng --triplet x64-windows-static
+```
+
 All you then need to do is to clone the repo, configure a build directory with cmake, and then build.
-For instance on linux:
+
+Make sure the path in CMAKE_TOOLCHAIN_FILE is correct.
 
 ````bash
 $ git clone --recursive git@github.com:dylanmsu/fast_caustic_design.git
 $ cd fast_caustic_design
 $ mkdir build
 $ cd build
-$ cmake ..
-$ make -j8
+$ cmake .. -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DCMAKE_BUILD_TYPE=Release
+$ cmake --build . --config Release
+$ ./Release/caustic_design.exe -res 512 -focal_l 1.5 -thickness 0.3 -width 1 -in_trg ../data/einstein.png
 ````
 
 ## How does it work

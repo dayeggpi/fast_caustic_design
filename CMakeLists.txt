@@ -65,14 +65,10 @@ find_package(Ceres REQUIRED)
 
 ## FILES ##########################################################################
 set(SURFACE_MESH_SRC_FILES
-    otlib/surface_mesh/IO.cpp
-    otlib/surface_mesh/IO_off.cpp
-    otlib/surface_mesh/IO_obj.cpp
     otlib/surface_mesh/Surface_mesh.cpp
 )
 
 set(SURFACE_MESH_HEADER_FILES
-    otlib/surface_mesh/IO.h
     otlib/surface_mesh/properties.h
     otlib/surface_mesh/Surface_mesh.h
     otlib/surface_mesh/types.h

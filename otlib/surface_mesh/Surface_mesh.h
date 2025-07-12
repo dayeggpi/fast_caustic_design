@@ -1691,8 +1691,8 @@ public: //--------------------------------------------- higher-level operations
     void delete_face(Face f);
 
     /// compute a characteristic feature size for the mesh
-    float feature_size() {
-        std::vector<float> samples(n_edges());
+    double feature_size() {
+        std::vector<double> samples(n_edges());
         int i=0;
         for(Edge_iterator e_it = edges_begin(); e_it != edges_end(); ++e_it) {
             samples[i] = (position(vertex(*e_it,0)) - position(vertex(*e_it,1))).squaredNorm();

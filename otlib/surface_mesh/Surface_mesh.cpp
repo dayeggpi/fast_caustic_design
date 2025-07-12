@@ -21,7 +21,6 @@
 
 
 #include <surface_mesh/Surface_mesh.h>
-#include <surface_mesh/IO.h>
 
 #include <cmath>
 #include <queue>
@@ -153,28 +152,6 @@ assign(const Surface_mesh& rhs)
     }
 
     return *this;
-}
-
-
-//-----------------------------------------------------------------------------
-
-
-bool
-Surface_mesh::
-read(const std::string& filename)
-{
-    return read_mesh(*this, filename);
-}
-
-
-//-----------------------------------------------------------------------------
-
-
-bool
-Surface_mesh::
-write(const std::string& filename) const
-{
-    return write_mesh(*this, filename);
 }
 
 
@@ -368,7 +345,7 @@ Surface_mesh::Face
 Surface_mesh::
 add_face(const std::vector<Vertex>& vertices)
 {
-    const unsigned int n(vertices.size());
+    const size_t n(vertices.size());
     assert (n > 2);
 
     Vertex        v;
@@ -1019,7 +996,6 @@ compute_vertex_normal(Vertex v) const
         const Vec3 p0 = make_vec3(vpoint_[v]);
 
         Vec3    n, p1, p2;
-        Scalar  cosine, angle, denom;
 
         do
         {
@@ -1030,26 +1006,8 @@ compute_vertex_normal(Vertex v) const
 
                 p2 = make_vec3(vpoint_[from_vertex(prev_halfedge(h))]);
                 p2 -= p0;
-
-                // check whether we can robustly compute angle
-//                denom = sqrt(dot(p1,p1)*dot(p2,p2));
-//                if (denom > std::numeric_limits<Scalar>::min())
-//                {
-//                    cosine = dot(p1,p2) / denom;
-//                    if      (cosine < -1.0) cosine = -1.0;
-//                    else if (cosine >  1.0) cosine =  1.0;
-//                    angle = acos(cosine);
-
-                    n   = p1.cross(p2);
-
-                    // check whether normal is != 0
-//                    denom = norm(n);
-//                    if (denom > std::numeric_limits<Scalar>::min())
-//                    {
-//                        n  *= angle/denom;
-                        nn += n;
-//                    }
-//                }
+                n   = p1.cross(p2);
+                nn += n;
             }
 
             h  = cw_rotated_halfedge(h);
@@ -1897,9 +1855,9 @@ delete_face(Face f)
     garbage_ = true;
 }
 
-static inline float wt(const Point &p1, const Point &p2, float invsigma2)
+static inline double wt(const Point &p1, const Point &p2, double invsigma2)
 {
-    float d2 = invsigma2 * (p2-p1).squaredNorm();
+    double d2 = invsigma2 * (p2-p1).squaredNorm();
     return (d2 >= 9.0f) ? 0.f : exp(-0.5*d2);
 }
 
@@ -1912,7 +1870,7 @@ void Surface_mesh::diffuse_vert_normal(Vertex v, float invsigma2, unsigned int &
     vv_end = vv;
     Point n = vnormal[v];
     snormal[v] = n;
-    float sum_w = 0.f;
+    double sum_w = 0.f;
     flag_curr++;
     flags[v.idx()] = flag_curr;
 
@@ -1927,11 +1885,11 @@ void Surface_mesh::diffuse_vert_normal(Vertex v, float invsigma2, unsigned int &
         if(flags[vn.idx()] == flag_curr)
             continue;
         flags[vn.idx()] = flag_curr;
-        float dotProd = vnormal[vn].dot(n);
+        double dotProd = vnormal[vn].dot(n);
         if(dotProd <= 0.f)
             continue;
         // Gaussian weight
-        float w = wt(position(v),position(vn),invsigma2);
+        double w = wt(position(v),position(vn),invsigma2);
         if(w == 0.f)
             continue;
         // Downweight things pointing in different directions

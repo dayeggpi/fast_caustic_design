@@ -18,8 +18,8 @@ namespace otmap {
 
 void sample_transportmap_to_image(const Surface_mesh &mesh, const VectorXi &sample_per_face, MatrixXd& img)
 {
-  int rows = img.rows();
-  int cols = img.cols();
+  int rows = static_cast<int>(img.rows());
+  int cols = static_cast<int>(img.cols());
   double dx = 1./double(cols);
   double dy = 1./double(rows);
 

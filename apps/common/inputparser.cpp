@@ -18,7 +18,7 @@ InputParser(int& argc, char** argv)
     m_tokens.push_back(std::string(argv[i]));
 }
 
-int
+size_t
 InputParser::
 getCmdOption(const std::string &option, std::vector<std::string> &value) const
 {
