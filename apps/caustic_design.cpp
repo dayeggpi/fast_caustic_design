@@ -34,23 +34,94 @@ using namespace otmap;
 
 void output_usage()
 {
-  std::cout << "usage : sample <option> <value>" << std::endl;
-
+  std::cout << "\033[1;36m" << "CAUSTIC DESIGN - 3D Caustic Surface Generator" << "\033[0m" << std::endl;
+  std::cout << "Generates 3D lens surfaces that create desired light patterns (caustics)" << std::endl;
   std::cout << std::endl;
 
-  std::cout << "input options : " << std::endl;
-  std::cout << " * -in_trg <filename> -> input image" << std::endl;
-  std::cout << " * -in_src <filename> -> optional source image" << std::endl;
-
-  std::cout << " * -output <filename> -> output path for the 3d model" << std::endl;
-  std::cout << " * -res <value> -> mesh resolution for the caustic surface" << std::endl;
-  std::cout << " * -focal_l <value> -> focal length of the caustic lens" << std::endl;
-  std::cout << " * -thickness <value> -> thickness of the caustic lens" << std::endl;
-  std::cout << " * -mesh_width <value> -> physical width and height of the lens" << std::endl;
-
+  std::cout << "\033[1;33m" << "USAGE:" << "\033[0m" << std::endl;
+  std::cout << "  caustic_design -in_trg <target_image> [options]" << std::endl;
   std::cout << std::endl;
 
-  CLI_OTSolverOptions::print_help();
+  std::cout << "\033[1;33m" << "REQUIRED PARAMETERS:" << "\033[0m" << std::endl;
+  std::cout << "  -in_trg <filename>     Target caustic pattern image (what you want the light to look like)" << std::endl;
+  std::cout << "                         Supported formats: PNG, BMP, JPG, and other CImg formats" << std::endl;
+  std::cout << "                         Must be square (same width and height)" << std::endl;
+  std::cout << "                         OR use procedural patterns: :id:resolution: (e.g., :8:256:)" << std::endl;
+  std::cout << "                         Available patterns: 1=constant, 5=linear, 6=circles+boundary," << std::endl;
+  std::cout << "                         8=circles, 10=single black dot, 11=single white dot," << std::endl;
+  std::cout << "                         21-25=research examples, 31-33=advanced patterns, etc." << std::endl;
+  std::cout << std::endl;
+
+  std::cout << "\033[1;33m" << "LENS GEOMETRY OPTIONS:" << "\033[0m" << std::endl;
+  std::cout << "  -res <value>           Mesh resolution for the caustic surface (default: 100)" << std::endl;
+  std::cout << "                         Higher values = more detail but slower computation" << std::endl;
+  std::cout << "  -focal_l <value>       Focal length of the caustic lens (default: 1.0)" << std::endl;
+  std::cout << "                         Distance from lens to projection plane" << std::endl;
+  std::cout << "  -thickness <value>     Physical thickness of the lens (default: 0.2)" << std::endl;
+  std::cout << "                         Controls how thick the final 3D model will be" << std::endl;
+  std::cout << "  -mesh_width <value>    Physical width and height of the lens (default: 1.0)" << std::endl;
+  std::cout << "                         Sets the overall size of the lens" << std::endl;
+  std::cout << std::endl;
+
+  std::cout << "\033[1;33m" << "SOURCE LIGHT OPTIONS:" << "\033[0m" << std::endl;
+  std::cout << "  -in_src <filename>     Source light distribution image (optional)" << std::endl;
+  std::cout << "                         If not provided, uniform light distribution is used" << std::endl;
+  std::cout << "                         Same format requirements as target image" << std::endl;
+  std::cout << std::endl;
+
+  std::cout << "\033[1;33m" << "OUTPUT OPTIONS:" << "\033[0m" << std::endl;
+  std::cout << "  -output <path>         Output file path (default: './output.obj')" << std::endl;
+  std::cout << "                         Can specify full path with filename or just directory" << std::endl;
+  std::cout << "                         If directory only, 'output.obj' will be used as filename" << std::endl;
+  std::cout << std::endl;
+
+  std::cout << "\033[1;33m" << "SOLVER OPTIONS:" << "\033[0m" << std::endl;
+  std::cout << "  -beta <method>         Optimization method: 'cj' (conjugate jacobian) or '0' (zero)" << std::endl;
+  std::cout << "                         Default: 'cj' (recommended for better performance)" << std::endl;
+  std::cout << "  -itr <max_iterations>  Maximum solver iterations (default: 1000)" << std::endl;
+  std::cout << "  -th <threshold>        Convergence threshold (default: 1e-7)" << std::endl;
+  std::cout << "                         Lower values = more precise but slower" << std::endl;
+  std::cout << "  -ratio <max_ratio>     Maximum target ratio (default: unlimited)" << std::endl;
+  std::cout << "  -v <level>             Verbosity level 0-10 (default: 1)" << std::endl;
+  std::cout << "                         0=silent, 1=normal, 10=very detailed" << std::endl;
+  std::cout << std::endl;
+
+  std::cout << "\033[1;33m" << "HELP:" << "\033[0m" << std::endl;
+  std::cout << "  -h, -help              Show this help message" << std::endl;
+  std::cout << std::endl;
+
+  std::cout << "\033[1;32m" << "EXAMPLES:" << "\033[0m" << std::endl;
+  std::cout << "  Basic usage:" << std::endl;
+  std::cout << "    caustic_design -in_trg my_pattern.png" << std::endl;
+  std::cout << std::endl;
+  std::cout << "  High resolution with custom focal length:" << std::endl;
+  std::cout << "    caustic_design -in_trg pattern.png -res 200 -focal_l 2.0" << std::endl;
+  std::cout << std::endl;
+  std::cout << "  With custom source light and output directory:" << std::endl;
+  std::cout << "    caustic_design -in_trg target.png -in_src source.png -output ./results/" << std::endl;
+  std::cout << std::endl;
+  std::cout << "  Using procedural pattern (circles):" << std::endl;
+  std::cout << "    caustic_design -in_trg :8:256: -res 150" << std::endl;
+  std::cout << std::endl;
+  std::cout << "  Testing with single black dot pattern:" << std::endl;
+  std::cout << "    caustic_design -in_trg :10:128: -focal_l 1.5" << std::endl;
+  std::cout << std::endl;
+
+  std::cout << "\033[1;34m" << "OUTPUT:" << "\033[0m" << std::endl;
+  std::cout << "  The program generates a 3D model file (.obj format) that can be:" << std::endl;
+  std::cout << "  * 3D printed to create a physical caustic lens" << std::endl;
+  std::cout << "  * Imported into 3D modeling software (Blender, Maya, etc.)" << std::endl;
+  std::cout << "  * Used in optical simulations" << std::endl;
+  std::cout << std::endl;
+
+  std::cout << "\033[1;35m" << "NOTES:" << "\033[0m" << std::endl;
+  std::cout << "  * Images must be square (same width and height)" << std::endl;
+  std::cout << "  * Higher resolution (-res) gives more detail but takes longer" << std::endl;
+  std::cout << "  * The lens uses refractive index 1.55 (typical plastic/glass)" << std::endl;
+  std::cout << "  * Processing involves 10 outer iterations for optimal results" << std::endl;
+  std::cout << "  * Procedural patterns are useful for testing - try :8:256: for circles" << std::endl;
+  std::cout << "  * Output path can be full filename or directory (defaults to 'output.obj')" << std::endl;
+  std::cout << std::endl;
 }
 
 struct CLIopts : CLI_OTSolverOptions
@@ -76,7 +147,7 @@ struct CLIopts : CLI_OTSolverOptions
     uniform_src = false;
     filename_trg = "";
 
-    output_path = "./";
+    output_path = "./output.obj";
 
     resolution = 100;
 
@@ -105,7 +176,7 @@ struct CLIopts : CLI_OTSolverOptions
     else
       return false;
 
-    if(args.cmdOptionExists("-output"))
+    if(args.getCmdOption("-output", value))
       output_path = value[0];
 
     if(args.getCmdOption("-res", value))
@@ -121,6 +192,26 @@ struct CLIopts : CLI_OTSolverOptions
       mesh_width = std::atof(value[0].c_str());
 
     return true;
+  }
+
+  // Helper function to get the final output file path
+  std::string get_output_file_path() const
+  {
+    // Check if output_path ends with .obj (is a full file path)
+    if (output_path.length() >= 4 &&
+        output_path.substr(output_path.length() - 4) == ".obj") {
+      return output_path;
+    }
+
+    // Otherwise treat as directory path
+    std::string dir_path = output_path;
+
+    // Ensure directory path ends with separator
+    if (!dir_path.empty() && dir_path.back() != '/' && dir_path.back() != '\\') {
+      dir_path += "/";
+    }
+
+    return dir_path + "output.obj";
   }
 };
 
@@ -258,7 +349,7 @@ void export_triangles_to_svg(std::vector<std::vector<double>> &points, std::vect
     // Write SVG header
     svg_file << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n";
     svg_file << "<svg width=\"1000\" height=\"" << 1000.0f * (height / width) << "\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n";
-    
+
     svg_file << "<rect width=\"100%\" height=\"100%\" fill=\"white\"/>\n";
 
     // Draw polygons
@@ -411,7 +502,7 @@ void applyTransportMapping(TransportMap &tmap_src, TransportMap &tmap_trg, Matri
   auto densityPtr = std::make_shared<Eigen::VectorXd>(density_trg);
 
   TransportMap transport(originMeshPtr, fwdMeshPtr, densityPtr);
-  
+
   apply_inverse_map(transport, vertex_positions, 3);
 }
 
@@ -451,13 +542,13 @@ double magnitude(std::vector<double> a) {
     const double cosI = -dot(normal, incident);
     // Calculate sin^2(theta_t) using Snell's law
     const double sinT2 = n * n * (1.0 - cosI * cosI);
-    
+
     // Check for Total Internal Reflection (TIR)
     if (sinT2 > 1.0) {
         // TIR occurs; return an invalid vector or handle appropriately
         // return Vector::invalid; // Uncomment if you have a way to represent TIR
     }
-    
+
     // Calculate cos(theta_t)
     const double cosT = sqrt(1.0 - sinT2);
     // Calculate the refracted direction vector
@@ -495,7 +586,7 @@ std::vector<double> refract(
     // Calculate the refracted ray direction
     std::vector<double> refractedRay(3);
     for (int i = 0; i < 3; ++i) {
-        refractedRay[i] = nRatio * rayDirection[i] + 
+        refractedRay[i] = nRatio * rayDirection[i] +
                           (nRatio * cosThetaI - cosThetaT) * surfaceNormal[i];
     }
 
@@ -507,7 +598,7 @@ bool intersect_plane(const std::vector<double> &n, const std::vector<double> &p0
     double denom = dot(n, l);
     if (denom > 1e-6) { // Check if ray is not parallel to the plane
         std::vector<double> p0l0 = sub(p0, l0);
-        double t = dot(p0l0, n) / denom; 
+        double t = dot(p0l0, n) / denom;
         if (t >= 0) { // Check if intersection is in the positive direction of the ray
             intersectionPoint[0] = l0[0] + t * l[0];
             intersectionPoint[1] = l0[1] + t * l[1];
@@ -563,8 +654,8 @@ void project_onto_boundary(std::vector<double> &point) {
 
 //compute the desired normals
 std::vector<std::vector<double>> fresnelMapping(
-  std::vector<std::vector<double>> &vertices, 
-  std::vector<std::vector<double>> &target_pts, 
+  std::vector<std::vector<double>> &vertices,
+  std::vector<std::vector<double>> &target_pts,
   double refractive_index
 ) {
     std::vector<std::vector<double>> desiredNormals;
@@ -657,7 +748,7 @@ std::vector<std::vector<double>> fresnelMapping(
 Eigen::MatrixXd rotate90ClockwiseAndFlipX(const Eigen::MatrixXd& mat) {
     int rows = static_cast<int>(mat.rows());
     int cols = static_cast<int>(mat.cols());
-    
+
     Eigen::MatrixXd rotated(cols, rows);  // New matrix with swapped dimensions
 
     // 90-degree clockwise rotation + X flip using a loop
@@ -690,7 +781,7 @@ int main(int argc, char** argv)
 
   // parse comand line options
   InputParser input(argc, argv);
-  
+
   MatrixXd density_src;
   MatrixXd density_trg;
 
@@ -698,7 +789,7 @@ int main(int argc, char** argv)
   normal_integration normal_int;
 
   if(input.cmdOptionExists("-help") || input.cmdOptionExists("-h")){
-    output_usage(); // TODO: add correct usage
+    output_usage();
     return 0;
   }
 
@@ -832,6 +923,7 @@ int main(int argc, char** argv)
   }
 
   // save obj
-  mesh.save_solid_obj_source(opts.thickness, opts.output_path + "output.obj");
-  std::cout << "\033[1;32m" << "Exported 3d model as " << (opts.output_path + "output.obj") << " relative to this executable." << "\033[0m" << std::endl;
+  std::string final_output_path = opts.get_output_file_path();
+  mesh.save_solid_obj_source(opts.thickness, final_output_path);
+  std::cout << "\033[1;32m" << "Exported 3d model as " << final_output_path << " relative to this executable." << "\033[0m" << std::endl;
 }
