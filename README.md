@@ -79,13 +79,15 @@ These rays define how we want the surface to bend the light. Using inverse Snell
 ## Limitation
 Currently, the code produces only square lenses, though work is underway to support rectangular lenses. Circular lenses might be possible in the future; however, achieving this will require a complete rewrite of the OTMap solver.
 
-The limitation stems from the fact that the OTMap solver is designed to compute the transport map from an image to a uniform distribution, denoted as T(u->1). Specifically, a transport map from a source image u to a target image v T(u->v) is estimated by means of inversion and composition (see Equation 10 in the paper). This approach is an estimation and not a true optimal transport map. This estimation inadvertently introduces a small curl component into the mapping, so its no longer purely the gradient of a potential.
+The limitation stems from the fact that the OTMap solver is designed to compute the transport map from an image to a uniform distribution, denoted as T(u->1). Specifically, our optimal transport domain is strictly square, so if we want a circular lens, we need to transport from a circular image towards your target image. 
+
+In this implementation a transport map from a source image u to a target image v T(u->v) is estimated by means of inversion and composition (see Equation 10 in the OTMap paper). This approach is an estimation and not a true optimal transport map. This estimation inadvertently introduces a small curl component into the mapping, so it is no longer purely the gradient of a potential.
 
 Because deriving a heightmap for a lens relies on normal integration, which only utilizes the curl-free component of the mapping, the presence of any curl results in distortions in the caustic lens.
 
 One solution to this issue would be to solve the transport map T(u->1) on a custom domain (think rounded rectangle, circle, ellipse, etc). This requires a rewrite because the current OTMap solver relies on a square domain with quad faces. You could use a triangular mesh as the domain and apply finite element analysis to compute the discrete differential operators. Namely the laplacian and the gradient. The laplacian uses a special stencil, and the gradient is calculated on the dual vertices, so this would not be trivial on a triangle mesh.
 
-A second solution that may be more approachable is modifying the right hand side of equation 11 by replacing (h^2) * u(x) with the integral of u(x) / v(T(x)) over the dual cell. This should solve the full Monge-Ampère equation and yield a true L2 optimal transport map T(u->v).
+A second solution that may be more approachable is modifying the right hand side of equation 11 in the OTMap paper by replacing (h^2) * u(x) with the integral of u(x) / v(T(x)) over the dual cell. This should solve the full Monge-Ampère equation and yield a true L2 optimal transport map T(u->v).
 
 ## License
 
